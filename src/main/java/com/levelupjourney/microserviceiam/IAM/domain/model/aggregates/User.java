@@ -1,10 +1,12 @@
 package com.levelupjourney.microserviceiam.IAM.domain.model.aggregates;
 
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role;
+import com.levelupjourney.microserviceiam.IAM.domain.model.entities.ExternalIdentity;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -36,6 +38,19 @@ public class User {
     @Column(unique = true)
     private String username;
 
+    @Email
+    @Column(unique = true)
+    private String email;
+
+    @Column(name = "email_verified")
+    private Boolean emailVerified = false;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     @NotBlank
     @Size(max = 120)
     private String password;
@@ -45,6 +60,9 @@ public class User {
                 joinColumns = @JoinColumn(name = "user_id"),
                 inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<ExternalIdentity> externalIdentities = new HashSet<>();
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)
@@ -56,16 +74,28 @@ public class User {
 
     public User() {
         this.roles = new HashSet<>();
+        this.externalIdentities = new HashSet<>();
     }
+
     public User(String username, String password) {
         this.username = username;
         this.password = password;
         this.roles = new HashSet<>();
+        this.externalIdentities = new HashSet<>();
     }
 
     public User(String username, String password, List<Role> roles) {
         this(username, password);
         addRoles(roles);
+    }
+
+    public User(String email, String name, String avatarUrl, boolean emailVerified) {
+        this.email = email;
+        this.name = name;
+        this.avatarUrl = avatarUrl;
+        this.emailVerified = emailVerified;
+        this.roles = new HashSet<>();
+        this.externalIdentities = new HashSet<>();
     }
 
     /**
@@ -87,6 +117,28 @@ public class User {
         var validatedRoleSet = Role.validateRoleSet(roles);
         this.roles.addAll(validatedRoleSet);
         return this;
+    }
+
+    /**
+     * Add an external identity to the user
+     * @param externalIdentity the external identity to add
+     * @return the user with the added external identity
+     */
+    public User addExternalIdentity(ExternalIdentity externalIdentity) {
+        this.externalIdentities.add(externalIdentity);
+        return this;
+    }
+
+    /**
+     * Get external identity by provider
+     * @param provider the provider name
+     * @return the external identity if found, null otherwise
+     */
+    public ExternalIdentity getExternalIdentityByProvider(String provider) {
+        return externalIdentities.stream()
+                .filter(identity -> identity.getProvider().equals(provider))
+                .findFirst()
+                .orElse(null);
     }
 
 }
