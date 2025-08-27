@@ -82,8 +82,7 @@ public class User {
         this.authIdentities = new HashSet<>();
         this.emails = new HashSet<>();
         this.sessions = new HashSet<>();
-        // Assign default STUDENT role
-        this.addRole(Role.getDefaultRole());
+        // Note: Default role should be added by the service layer to avoid duplicates
     }
 
     public User(String username, List<Role> roles) {
@@ -105,8 +104,7 @@ public class User {
         this.sessions = new HashSet<>();
         // Add primary email (provider will be set later by the calling service)
         this.addEmail(email, true, emailVerified, null);
-        // Assign default STUDENT role
-        this.addRole(Role.getDefaultRole());
+        // Note: Default role should be added by the service layer to avoid duplicates
     }
 
     public User(String email, String name, String avatarUrl, boolean emailVerified, com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider verifiedByProvider) {
@@ -119,8 +117,7 @@ public class User {
         this.sessions = new HashSet<>();
         // Add primary email with specific provider
         this.addEmail(email, true, emailVerified, emailVerified ? verifiedByProvider : null);
-        // Assign default STUDENT role
-        this.addRole(Role.getDefaultRole());
+        // Note: Default role should be added by the service layer to avoid duplicates
     }
 
     /**
@@ -139,8 +136,9 @@ public class User {
      * @return the user with the added roles
      */
     public User addRoles(List<Role> roles) {
-        var validatedRoleSet = Role.validateRoleSet(roles);
-        this.roles.addAll(validatedRoleSet);
+        if (roles != null && !roles.isEmpty()) {
+            this.roles.addAll(roles);
+        }
         return this;
     }
 

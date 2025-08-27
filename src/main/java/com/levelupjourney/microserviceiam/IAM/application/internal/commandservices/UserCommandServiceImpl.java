@@ -8,6 +8,7 @@ import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignUpComman
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.AuthIdentity;
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.UserSession;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider;
+import com.levelupjourney.microserviceiam.IAM.domain.services.RoleService;
 import com.levelupjourney.microserviceiam.IAM.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.AuthIdentityRepository;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.UserRepository;
@@ -32,13 +33,15 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final UserSessionRepository userSessionRepository;
     private final HashingService hashingService;
     private final TokenService tokenService;
+    private final RoleService roleService;
 
-    public UserCommandServiceImpl(UserRepository userRepository, AuthIdentityRepository authIdentityRepository, UserSessionRepository userSessionRepository, HashingService hashingService, TokenService tokenService) {
+    public UserCommandServiceImpl(UserRepository userRepository, AuthIdentityRepository authIdentityRepository, UserSessionRepository userSessionRepository, HashingService hashingService, TokenService tokenService, RoleService roleService) {
         this.userRepository = userRepository;
         this.authIdentityRepository = authIdentityRepository;
         this.userSessionRepository = userSessionRepository;
         this.hashingService = hashingService;
         this.tokenService = tokenService;
+        this.roleService = roleService;
     }
 
     /**
@@ -46,13 +49,13 @@ public class UserCommandServiceImpl implements UserCommandService {
      * <p>
      *     This method handles the {@link SignInCommand} command and returns the user and the token.
      * </p>
-     * @param command the sign-in command containing the username and password
-     * @return and optional containing the user matching the username and the generated token
+     * @param command the sign-in command containing the email and password
+     * @return and optional containing the user matching the email and the generated token
      * @throws RuntimeException if the user is not found or the password is invalid
      */
     @Override
     public Optional<ImmutablePair<User, String>> handle(SignInCommand command) {
-        var user = userRepository.findByUsername(command.username());
+        var user = userRepository.findByEmail(command.email());
         if (user.isEmpty()) {
             // Create failed session for non-existent user
             var failedSession = new UserSession(null, AuthProvider.LOCAL, "LOGIN", false, "User not found");
@@ -85,6 +88,9 @@ public class UserCommandServiceImpl implements UserCommandService {
         userSessionRepository.save(session);
         user.get().addSession(session);
         
+        // Save the user with the new session
+        userRepository.save(user.get());
+        
         var token = tokenService.generateToken(user.get().getUsername());
         return Optional.of(ImmutablePair.of(user.get(), token));
     }
@@ -95,21 +101,43 @@ public class UserCommandServiceImpl implements UserCommandService {
      *     This method handles the {@link SignUpCommand} command and returns the user.
      *     Users are automatically assigned STUDENT role by default.
      * </p>
-     * @param command the sign-up command containing the username and password
+     * @param command the sign-up command containing the email and password
      * @return the created user
      */
     @Override
     public Optional<User> handle(SignUpCommand command) {
-        if (userRepository.existsByUsername(command.username()))
-            throw new RuntimeException("Username already exists");
+        if (userRepository.existsByEmail(command.email()))
+            throw new RuntimeException("Email already exists");
         
-        var user = new User(command.username());
+        // Generate username from email (part before @)
+        String username = command.email().split("@")[0];
+        // Ensure username uniqueness by appending number if needed
+        String finalUsername = username;
+        int counter = 1;
+        while (userRepository.existsByUsername(finalUsername)) {
+            finalUsername = username + counter;
+            counter++;
+        }
+        
+        var user = new User(finalUsername);
+        // Add the email to the user
+        user.addEmail(command.email(), true, false, null);
+        // Add the default role using RoleService to avoid duplicates
+        user.addRole(roleService.getOrCreateDefaultRole());
         userRepository.save(user);
         
         // Create local auth identity
         var authIdentity = new AuthIdentity(user, AuthProvider.LOCAL, hashingService.encode(command.password()));
         authIdentityRepository.save(authIdentity);
         user.addAuthIdentity(authIdentity);
+        
+        // Create successful signup session
+        var session = new UserSession(user, AuthProvider.LOCAL, "SIGNUP", true);
+        userSessionRepository.save(session);
+        user.addSession(session);
+        
+        // Save the user with all the new associations
+        userRepository.save(user);
         
         return Optional.of(user);
     }

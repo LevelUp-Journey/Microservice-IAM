@@ -7,6 +7,7 @@ import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.AuthIdentity;
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.UserSession;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider;
+import com.levelupjourney.microserviceiam.IAM.domain.services.RoleService;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.AuthIdentityRepository;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.UserRepository;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.UserSessionRepository;
@@ -25,19 +26,22 @@ public class OAuth2CommandServiceImpl {
     private final AuthIdentityRepository authIdentityRepository;
     private final UserSessionRepository userSessionRepository;
     private final TokenService tokenService;
+    private final RoleService roleService;
 
     public OAuth2CommandServiceImpl(GoogleOAuth2Service googleOAuth2Service,
                                GitHubOAuth2Service gitHubOAuth2Service,
                                UserRepository userRepository,
                                AuthIdentityRepository authIdentityRepository,
                                UserSessionRepository userSessionRepository,
-                               TokenService tokenService) {
+                               TokenService tokenService,
+                               RoleService roleService) {
         this.googleOAuth2Service = googleOAuth2Service;
         this.gitHubOAuth2Service = gitHubOAuth2Service;
         this.userRepository = userRepository;
         this.authIdentityRepository = authIdentityRepository;
         this.userSessionRepository = userSessionRepository;
         this.tokenService = tokenService;
+        this.roleService = roleService;
     }
 
     @Transactional
@@ -73,6 +77,9 @@ public class OAuth2CommandServiceImpl {
             var session = new UserSession(user, AuthProvider.GOOGLE, sessionType, true);
             userSessionRepository.save(session);
             user.addSession(session);
+            
+            // Save the user with the new session
+            userRepository.save(user);
 
             return tokenService.generateToken(user.getUsername());
             
@@ -117,6 +124,9 @@ public class OAuth2CommandServiceImpl {
             var session = new UserSession(user, AuthProvider.GITHUB, sessionType, true);
             userSessionRepository.save(session);
             user.addSession(session);
+            
+            // Save the user with the new session
+            userRepository.save(user);
 
             return tokenService.generateToken(user.getUsername());
             
@@ -141,18 +151,20 @@ public class OAuth2CommandServiceImpl {
             return existingUser.get();
         }
 
-        // Use Google ID as username to ensure uniqueness
-        String username = "google_" + userInfo.getId();
+        // Generate normalized username from email
+        String baseUsername = userInfo.getEmail().split("@")[0];
+        String normalizedUsername = generateUniqueUsername(baseUsername);
         
-        // Create user with Google ID as username
-        User newUser = new User(username);
+        // Create user with normalized username
+        User newUser = new User(normalizedUsername);
         newUser.setName(userInfo.getName());
         newUser.setAvatarUrl(userInfo.getPicture());
         
         // Add Google email
         newUser.addEmail(userInfo.getEmail(), true, true, AuthProvider.GOOGLE);
         
-        // Role is already added by the User constructor
+        // Add default role using RoleService to avoid duplicates
+        newUser.addRole(roleService.getOrCreateDefaultRole());
 
         return userRepository.save(newUser);
     }
@@ -201,19 +213,21 @@ public class OAuth2CommandServiceImpl {
             return existingUser.get();
         }
 
-        // Use GitHub login as username (which is unique) and name as display name
-        String username = "gh_" + userInfo.getLogin(); // Prefix to ensure uniqueness
+        // Generate normalized username from email
+        String baseUsername = userInfo.getEmail().split("@")[0];
+        String normalizedUsername = generateUniqueUsername(baseUsername);
         String displayName = userInfo.getName() != null ? userInfo.getName() : userInfo.getLogin();
         
-        // Create user with GitHub login as username
-        User newUser = new User(username);
+        // Create user with normalized username
+        User newUser = new User(normalizedUsername);
         newUser.setName(displayName);
         newUser.setAvatarUrl(userInfo.getAvatarUrl());
         
         // Add GitHub email
         newUser.addEmail(userInfo.getEmail(), true, true, AuthProvider.GITHUB);
         
-        // Role is already added by the User constructor
+        // Add default role using RoleService to avoid duplicates
+        newUser.addRole(roleService.getOrCreateDefaultRole());
 
         return userRepository.save(newUser);
     }
@@ -247,6 +261,19 @@ public class OAuth2CommandServiceImpl {
             authIdentityRepository.save(newIdentity);
             user.addAuthIdentity(newIdentity);
         }
+    }
+
+    /**
+     * Generate a unique username based on a base username
+     */
+    private String generateUniqueUsername(String baseUsername) {
+        String finalUsername = baseUsername;
+        int counter = 1;
+        while (userRepository.existsByUsername(finalUsername)) {
+            finalUsername = baseUsername + counter;
+            counter++;
+        }
+        return finalUsername;
     }
 
 }

@@ -13,7 +13,12 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "user_sessions")
+@Table(name = "user_sessions", 
+       indexes = {
+           @Index(name = "idx_user_sessions_user_id", columnList = "user_id"),
+           @Index(name = "idx_user_sessions_auth_provider", columnList = "auth_provider"),
+           @Index(name = "idx_user_sessions_created_at", columnList = "created_at")
+       })
 @EntityListeners(AuditingEntityListener.class)
 public class UserSession {
 
@@ -23,7 +28,7 @@ public class UserSession {
     private java.util.UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private User user;
 
     @Enumerated(EnumType.STRING)

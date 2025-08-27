@@ -59,13 +59,16 @@ public class OAuth2Controller {
         String state = googleOAuth2Service.generateState();
         String authUrl = googleOAuth2Service.buildAuthorizationUrl(state);
 
-        // Set state cookie
+        logger.info("Starting Google OAuth2 authentication with state: {}", state);
+        
+        // Set state cookie with proper attributes
         Cookie stateCookie = new Cookie(OAUTH_STATE_COOKIE, state);
         stateCookie.setHttpOnly(true);
         stateCookie.setSecure(false); // Set to true in production with HTTPS
         stateCookie.setPath("/");
         stateCookie.setMaxAge(600); // 10 minutes
         response.addCookie(stateCookie);
+        response.addHeader("Set-Cookie", OAUTH_STATE_COOKIE + "=" + state + "; Path=/; Max-Age=600; HttpOnly; SameSite=Lax");
 
         // Set provider cookie to identify Google
         Cookie providerCookie = new Cookie(OAUTH_PROVIDER_COOKIE, "google");
@@ -74,7 +77,9 @@ public class OAuth2Controller {
         providerCookie.setPath("/");
         providerCookie.setMaxAge(600);
         response.addCookie(providerCookie);
+        response.addHeader("Set-Cookie", OAUTH_PROVIDER_COOKIE + "=google; Path=/; Max-Age=600; HttpOnly; SameSite=Lax");
 
+        logger.info("Redirecting to Google OAuth2 URL: {}", authUrl);
         response.sendRedirect(authUrl);
     }
 
@@ -91,13 +96,16 @@ public class OAuth2Controller {
         String state = gitHubOAuth2Service.generateState();
         String authUrl = gitHubOAuth2Service.buildAuthorizationUrl(state);
 
-        // Set state cookie
+        logger.info("Starting GitHub OAuth2 authentication with state: {}", state);
+        
+        // Set state cookie with proper attributes
         Cookie stateCookie = new Cookie(OAUTH_STATE_COOKIE, state);
         stateCookie.setHttpOnly(true);
         stateCookie.setSecure(false); // Set to true in production with HTTPS
         stateCookie.setPath("/");
         stateCookie.setMaxAge(600); // 10 minutes
         response.addCookie(stateCookie);
+        response.addHeader("Set-Cookie", OAUTH_STATE_COOKIE + "=" + state + "; Path=/; Max-Age=600; HttpOnly; SameSite=Lax");
 
         // Set provider cookie to identify GitHub
         Cookie providerCookie = new Cookie(OAUTH_PROVIDER_COOKIE, "github");
@@ -106,7 +114,9 @@ public class OAuth2Controller {
         providerCookie.setPath("/");
         providerCookie.setMaxAge(600);
         response.addCookie(providerCookie);
+        response.addHeader("Set-Cookie", OAUTH_PROVIDER_COOKIE + "=github; Path=/; Max-Age=600; HttpOnly; SameSite=Lax");
 
+        logger.info("Redirecting to GitHub OAuth2 URL: {}", authUrl);
         response.sendRedirect(authUrl);
     }
 
@@ -155,6 +165,16 @@ public class OAuth2Controller {
             String storedState = getStoredState(request);
             String provider = getStoredProvider(request);
             logger.info("Stored state: {}, received state: {}, provider: {}", storedState, state, provider);
+            
+            // Debug: Log all cookies
+            Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    logger.info("Cookie: {} = {}", cookie.getName(), cookie.getValue());
+                }
+            } else {
+                logger.info("No cookies found in request");
+            }
             
             if (storedState == null) {
                 logger.error("No stored state found in cookies");
@@ -213,6 +233,7 @@ public class OAuth2Controller {
         );
     }
 
+
     private String getStoredState(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
@@ -263,7 +284,7 @@ public class OAuth2Controller {
     @ResponseBody
     @Operation(
         summary = "OAuth2 authentication success page",
-        description = "Displays the result of OAuth2 authentication (success or failure)"
+        description = "Shows successful OAuth2 authentication with JWT token"
     )
     public ResponseEntity<String> authSuccess(@RequestParam(required = false) String token,
                                             @RequestParam(required = false) String error) {
@@ -287,8 +308,8 @@ public class OAuth2Controller {
         
         return ResponseEntity.ok()
             .header("Content-Type", "text/html")
-            .body("<h1>OAuth2 Test Page</h1>" +
-                  "<p>This page shows OAuth2 results</p>");
+            .body("<h1>OAuth2 Authentication</h1>" +
+                  "<p>Waiting for authentication result...</p>");
     }
 
     public static class AuthStatusResponse {

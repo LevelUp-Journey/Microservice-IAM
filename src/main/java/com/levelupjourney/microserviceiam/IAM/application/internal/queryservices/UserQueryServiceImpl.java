@@ -2,6 +2,7 @@ package com.levelupjourney.microserviceiam.IAM.application.internal.queryservice
 
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetAllUsersQuery;
+import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetUserByEmailQuery;
 import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetUserByIdQuery;
 import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetUserByUsernameQuery;
 import com.levelupjourney.microserviceiam.IAM.domain.services.UserQueryService;
@@ -58,5 +59,16 @@ public class UserQueryServiceImpl implements UserQueryService {
     @Override
     public Optional<User> handle(GetUserByUsernameQuery query) {
         return userRepository.findByUsername(query.username());
+    }
+
+    /**
+     * This method is used to handle {@link GetUserByEmailQuery} query.
+     * @param query {@link GetUserByEmailQuery} instance.
+     * @return {@link Optional} of {@link User} instance.
+     * @see GetUserByEmailQuery
+     */
+    @Override
+    public Optional<User> handle(GetUserByEmailQuery query) {
+        return userRepository.findByEmail(query.email());
     }
 }
