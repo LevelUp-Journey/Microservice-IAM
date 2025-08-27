@@ -5,8 +5,10 @@ import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservi
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignInCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignUpCommand;
+import com.levelupjourney.microserviceiam.IAM.domain.model.entities.AuthIdentity;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider;
 import com.levelupjourney.microserviceiam.IAM.domain.services.UserCommandService;
-import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.RoleRepository;
+import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.AuthIdentityRepository;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.UserRepository;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.stereotype.Service;
@@ -24,16 +26,15 @@ import java.util.Optional;
 public class UserCommandServiceImpl implements UserCommandService {
 
     private final UserRepository userRepository;
+    private final AuthIdentityRepository authIdentityRepository;
     private final HashingService hashingService;
     private final TokenService tokenService;
 
-    private final RoleRepository roleRepository;
-
-    public UserCommandServiceImpl(UserRepository userRepository, HashingService hashingService, TokenService tokenService, RoleRepository roleRepository) {
+    public UserCommandServiceImpl(UserRepository userRepository, AuthIdentityRepository authIdentityRepository, HashingService hashingService, TokenService tokenService) {
         this.userRepository = userRepository;
+        this.authIdentityRepository = authIdentityRepository;
         this.hashingService = hashingService;
         this.tokenService = tokenService;
-        this.roleRepository = roleRepository;
     }
 
     /**
@@ -50,8 +51,19 @@ public class UserCommandServiceImpl implements UserCommandService {
         var user = userRepository.findByUsername(command.username());
         if (user.isEmpty())
             throw new RuntimeException("User not found");
-        if (!hashingService.matches(command.password(), user.get().getPassword()))
+        
+        // Find local auth identity for this user
+        var authIdentity = authIdentityRepository.findByUserIdAndProvider(user.get().getId(), AuthProvider.LOCAL);
+        if (authIdentity.isEmpty())
+            throw new RuntimeException("No local authentication found for user");
+        
+        if (!hashingService.matches(command.password(), authIdentity.get().getPasswordHash()))
             throw new RuntimeException("Invalid password");
+        
+        // Update last login
+        authIdentity.get().updateLastLogin();
+        authIdentityRepository.save(authIdentity.get());
+        
         var token = tokenService.generateToken(user.get().getUsername());
         return Optional.of(ImmutablePair.of(user.get(), token));
     }
@@ -60,6 +72,7 @@ public class UserCommandServiceImpl implements UserCommandService {
      * Handle the sign-up command
      * <p>
      *     This method handles the {@link SignUpCommand} command and returns the user.
+     *     Users are automatically assigned STUDENT role by default.
      * </p>
      * @param command the sign-up command containing the username and password
      * @return the created user
@@ -68,9 +81,15 @@ public class UserCommandServiceImpl implements UserCommandService {
     public Optional<User> handle(SignUpCommand command) {
         if (userRepository.existsByUsername(command.username()))
             throw new RuntimeException("Username already exists");
-        var roles = command.roles().stream().map(role -> roleRepository.findByName(role.getName()).orElseThrow(() -> new RuntimeException("Role name not found"))).toList();
-        var user = new User(command.username(), hashingService.encode(command.password()), roles);
+        
+        var user = new User(command.username());
         userRepository.save(user);
-        return userRepository.findByUsername(command.username());
+        
+        // Create local auth identity
+        var authIdentity = new AuthIdentity(user, AuthProvider.LOCAL, hashingService.encode(command.password()));
+        authIdentityRepository.save(authIdentity);
+        user.addAuthIdentity(authIdentity);
+        
+        return Optional.of(user);
     }
 }
