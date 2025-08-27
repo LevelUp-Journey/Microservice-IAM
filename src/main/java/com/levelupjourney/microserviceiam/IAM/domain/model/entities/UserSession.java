@@ -38,9 +38,6 @@ public class UserSession {
     @Column(name = "session_type", nullable = false)
     private String sessionType; // "LOGIN", "SIGNUP"
 
-    @Column(name = "ip_address")
-    private String ipAddress;
-
     @Column(name = "user_agent")
     private String userAgent;
 
@@ -71,8 +68,7 @@ public class UserSession {
         this.failureReason = failureReason;
     }
 
-    public void setSessionInfo(String ipAddress, String userAgent) {
-        this.ipAddress = ipAddress;
+    public void setSessionInfo(String userAgent) {
         this.userAgent = userAgent;
     }
 }

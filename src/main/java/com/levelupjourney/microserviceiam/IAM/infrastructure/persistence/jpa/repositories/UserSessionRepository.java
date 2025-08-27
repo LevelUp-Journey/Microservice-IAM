@@ -27,9 +27,6 @@ public interface UserSessionRepository extends JpaRepository<UserSession, UUID> 
                                                @Param("startDate") LocalDateTime startDate, 
                                                @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT s FROM UserSession s WHERE s.ipAddress = :ipAddress AND s.createdAt > :since ORDER BY s.createdAt DESC")
-    List<UserSession> findRecentSessionsByIpAddress(@Param("ipAddress") String ipAddress, 
-                                                     @Param("since") LocalDateTime since);
 
     long countByUserIdAndSuccessAndCreatedAtAfter(UUID userId, Boolean success, LocalDateTime after);
 }
