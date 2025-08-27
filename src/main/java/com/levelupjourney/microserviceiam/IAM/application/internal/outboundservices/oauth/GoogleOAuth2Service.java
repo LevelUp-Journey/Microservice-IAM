@@ -28,7 +28,7 @@ public class GoogleOAuth2Service {
     private static final String GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
     private static final String GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
     private static final String GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
-    private static final String REDIRECT_URI = "http://localhost:8080/auth/callback";
+    private static final String REDIRECT_URI = "http://localhost:8080/oauth2/callback";
     private static final String SCOPE = "openid email profile";
 
     public GoogleOAuth2Service() {
