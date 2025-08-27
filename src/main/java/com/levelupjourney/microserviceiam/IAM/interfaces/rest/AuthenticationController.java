@@ -4,11 +4,11 @@ import com.levelupjourney.microserviceiam.IAM.domain.services.UserCommandService
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.AuthenticatedUserResource;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.SignInResource;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.SignUpResource;
-import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.UserResource;
+import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.SignUpUserResource;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.AuthenticatedUserResourceFromEntityAssembler;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.SignInCommandFromResourceAssembler;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.SignUpCommandFromResourceAssembler;
-import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.UserResourceFromEntityAssembler;
+import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.SignUpUserResourceFromEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -72,13 +72,13 @@ public class AuthenticationController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "User created successfully."),
             @ApiResponse(responseCode = "400", description = "Bad request.")})
-    public ResponseEntity<UserResource> signUp(@RequestBody SignUpResource signUpResource) {
+    public ResponseEntity<SignUpUserResource> signUp(@RequestBody SignUpResource signUpResource) {
         var signUpCommand = SignUpCommandFromResourceAssembler.toCommandFromResource(signUpResource);
         var user = userCommandService.handle(signUpCommand);
         if (user.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-        var userResource = UserResourceFromEntityAssembler.toResourceFromEntity(user.get());
+        var userResource = SignUpUserResourceFromEntityAssembler.toResourceFromEntity(user.get());
         return new ResponseEntity<>(userResource, HttpStatus.CREATED);
 
     }

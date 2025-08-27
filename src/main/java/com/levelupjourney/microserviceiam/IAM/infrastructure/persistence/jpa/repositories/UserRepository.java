@@ -2,6 +2,8 @@ package com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.re
 
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -32,13 +34,15 @@ public interface UserRepository extends JpaRepository<User, java.util.UUID>
      * @param email The email.
      * @return The user object.
      */
-    Optional<User> findByEmail(String email);
+    @Query("SELECT u FROM User u JOIN u.emails e WHERE e.email = :email")
+    Optional<User> findByEmail(@Param("email") String email);
 
     /**
      * This method is responsible for checking if the user exists by email.
      * @param email The email.
      * @return True if the user exists, false otherwise.
      */
-    boolean existsByEmail(String email);
+    @Query("SELECT COUNT(u) > 0 FROM User u JOIN u.emails e WHERE e.email = :email")
+    boolean existsByEmail(@Param("email") String email);
 
 }
