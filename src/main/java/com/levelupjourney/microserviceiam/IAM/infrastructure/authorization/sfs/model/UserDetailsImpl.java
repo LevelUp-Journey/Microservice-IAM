@@ -56,7 +56,7 @@ public class UserDetailsImpl implements UserDetails {
                 .collect(Collectors.toList());
         return new UserDetailsImpl(
                 user.getUsername(),
-                user.getPassword(),
+                "",  // Password not stored in User anymore, handled by AuthIdentity
                 authorities);
     }
 

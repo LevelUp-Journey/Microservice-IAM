@@ -1,7 +1,6 @@
 package com.levelupjourney.microserviceiam.IAM.interfaces.acl;
 
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignUpCommand;
-import com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role;
 import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetUserByIdQuery;
 import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetUserByUsernameQuery;
 import com.levelupjourney.microserviceiam.IAM.domain.services.UserCommandService;
@@ -9,7 +8,6 @@ import com.levelupjourney.microserviceiam.IAM.domain.services.UserQueryService;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -33,12 +31,13 @@ public class IamContextFacade {
 
     /**
      * Creates a user with the given username and password.
+     * User is assigned STUDENT role by default.
      * @param username The username of the user.
      * @param password The password of the user.
      * @return The id of the created user.
      */
     public java.util.UUID createUser(String username, String password) {
-        var signUpCommand = new SignUpCommand(username, password, List.of(Role.getDefaultRole()));
+        var signUpCommand = new SignUpCommand(username, password);
         var result = userCommandService.handle(signUpCommand);
         if (result.isEmpty()) return null;
         return result.get().getId();
@@ -50,10 +49,12 @@ public class IamContextFacade {
      * @param password The password of the user.
      * @param roleNames The names of the roles of the user. When a role does not exist, it is ignored.
      * @return The id of the created user.
+     * @deprecated Use createUser(String, String) instead. Users are assigned STUDENT role by default.
      */
+    @Deprecated
     public java.util.UUID createUser(String username, String password, List<String> roleNames) {
-        var roles = roleNames != null ? roleNames.stream().map(Role::toRoleFromName).toList() : new ArrayList<Role>();
-        var signUpCommand = new SignUpCommand(username, password, roles);
+        // For backward compatibility, create user with default role and then update roles if needed
+        var signUpCommand = new SignUpCommand(username, password);
         var result = userCommandService.handle(signUpCommand);
         if (result.isEmpty()) return null;
         return result.get().getId();

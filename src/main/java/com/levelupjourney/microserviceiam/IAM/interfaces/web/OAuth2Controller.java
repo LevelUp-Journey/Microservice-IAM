@@ -1,6 +1,6 @@
 package com.levelupjourney.microserviceiam.IAM.interfaces.web;
 
-import com.levelupjourney.microserviceiam.IAM.application.internal.commandservices.OAuth2CommandService;
+import com.levelupjourney.microserviceiam.IAM.application.internal.commandservices.OAuth2CommandServiceImpl;
 import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.oauth.GoogleOAuth2Service;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -29,13 +29,13 @@ public class OAuth2Controller {
     private static final Logger logger = LoggerFactory.getLogger(OAuth2Controller.class);
 
     private final GoogleOAuth2Service googleOAuth2Service;
-    private final OAuth2CommandService oAuth2CommandService;
+    private final OAuth2CommandServiceImpl oAuth2CommandService;
 
     private static final String OAUTH_STATE_COOKIE = "oauth_state";
     private static final String FRONTEND_URL = "http://localhost:8080/auth/success";
 
     public OAuth2Controller(GoogleOAuth2Service googleOAuth2Service,
-                           OAuth2CommandService oAuth2CommandService) {
+                           OAuth2CommandServiceImpl oAuth2CommandService) {
         this.googleOAuth2Service = googleOAuth2Service;
         this.oAuth2CommandService = oAuth2CommandService;
     }
