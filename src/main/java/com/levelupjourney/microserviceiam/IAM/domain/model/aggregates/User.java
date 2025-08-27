@@ -2,11 +2,12 @@ package com.levelupjourney.microserviceiam.IAM.domain.model.aggregates;
 
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role;
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.AuthIdentity;
+import com.levelupjourney.microserviceiam.IAM.domain.model.entities.UserEmail;
+import com.levelupjourney.microserviceiam.IAM.domain.model.entities.UserSession;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -38,12 +39,11 @@ public class User {
     @Column(unique = true)
     private String username;
 
-    @Email
-    @Column(unique = true)
-    private String email;
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<UserEmail> emails = new HashSet<>();
 
-    @Column(name = "email_verified")
-    private Boolean emailVerified = false;
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<UserSession> sessions = new HashSet<>();
 
     @Column(name = "name")
     private String name;
@@ -72,12 +72,16 @@ public class User {
     public User() {
         this.roles = new HashSet<>();
         this.authIdentities = new HashSet<>();
+        this.emails = new HashSet<>();
+        this.sessions = new HashSet<>();
     }
 
     public User(String username) {
         this.username = username;
         this.roles = new HashSet<>();
         this.authIdentities = new HashSet<>();
+        this.emails = new HashSet<>();
+        this.sessions = new HashSet<>();
         // Assign default STUDENT role
         this.addRole(Role.getDefaultRole());
     }
@@ -86,17 +90,35 @@ public class User {
         this.username = username;
         this.roles = new HashSet<>();
         this.authIdentities = new HashSet<>();
+        this.emails = new HashSet<>();
+        this.sessions = new HashSet<>();
         addRoles(roles);
     }
 
     public User(String email, String name, String avatarUrl, boolean emailVerified) {
-        this.email = email;
         this.name = name;
         this.avatarUrl = avatarUrl;
-        this.emailVerified = emailVerified;
         this.username = name; // Use full name as username for OAuth users
         this.roles = new HashSet<>();
         this.authIdentities = new HashSet<>();
+        this.emails = new HashSet<>();
+        this.sessions = new HashSet<>();
+        // Add primary email (provider will be set later by the calling service)
+        this.addEmail(email, true, emailVerified, null);
+        // Assign default STUDENT role
+        this.addRole(Role.getDefaultRole());
+    }
+
+    public User(String email, String name, String avatarUrl, boolean emailVerified, com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider verifiedByProvider) {
+        this.name = name;
+        this.avatarUrl = avatarUrl;
+        this.username = name; // Use full name as username for OAuth users
+        this.roles = new HashSet<>();
+        this.authIdentities = new HashSet<>();
+        this.emails = new HashSet<>();
+        this.sessions = new HashSet<>();
+        // Add primary email with specific provider
+        this.addEmail(email, true, emailVerified, emailVerified ? verifiedByProvider : null);
         // Assign default STUDENT role
         this.addRole(Role.getDefaultRole());
     }
@@ -142,6 +164,54 @@ public class User {
                 .filter(identity -> identity.getProvider().name().equals(provider))
                 .findFirst()
                 .orElse(null);
+    }
+
+    /**
+     * Add an email to the user
+     * @param email the email address
+     * @param isPrimary whether this is the primary email
+     * @param isVerified whether the email is verified
+     * @param verifiedByProvider the provider that verified the email
+     * @return the user with the added email
+     */
+    public User addEmail(String email, Boolean isPrimary, Boolean isVerified, com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider verifiedByProvider) {
+        UserEmail userEmail = new UserEmail(this, email, isPrimary, isVerified, verifiedByProvider);
+        this.emails.add(userEmail);
+        return this;
+    }
+
+    /**
+     * Get primary email address
+     * @return the primary email address, null if none found
+     */
+    public String getPrimaryEmail() {
+        return emails.stream()
+                .filter(UserEmail::getIsPrimary)
+                .map(UserEmail::getEmail)
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Check if email is verified
+     * @return true if primary email is verified, false otherwise
+     */
+    public Boolean getEmailVerified() {
+        return emails.stream()
+                .filter(UserEmail::getIsPrimary)
+                .map(UserEmail::getIsVerified)
+                .findFirst()
+                .orElse(false);
+    }
+
+    /**
+     * Add a session to track user activity
+     * @param session the session to add
+     * @return the user with the added session
+     */
+    public User addSession(UserSession session) {
+        this.sessions.add(session);
+        return this;
     }
 
 }

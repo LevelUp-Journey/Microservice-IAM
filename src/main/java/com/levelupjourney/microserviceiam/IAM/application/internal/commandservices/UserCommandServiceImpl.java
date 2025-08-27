@@ -6,10 +6,12 @@ import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignInCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignUpCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.AuthIdentity;
+import com.levelupjourney.microserviceiam.IAM.domain.model.entities.UserSession;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider;
 import com.levelupjourney.microserviceiam.IAM.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.AuthIdentityRepository;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.UserRepository;
+import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.UserSessionRepository;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.stereotype.Service;
 
@@ -27,12 +29,14 @@ public class UserCommandServiceImpl implements UserCommandService {
 
     private final UserRepository userRepository;
     private final AuthIdentityRepository authIdentityRepository;
+    private final UserSessionRepository userSessionRepository;
     private final HashingService hashingService;
     private final TokenService tokenService;
 
-    public UserCommandServiceImpl(UserRepository userRepository, AuthIdentityRepository authIdentityRepository, HashingService hashingService, TokenService tokenService) {
+    public UserCommandServiceImpl(UserRepository userRepository, AuthIdentityRepository authIdentityRepository, UserSessionRepository userSessionRepository, HashingService hashingService, TokenService tokenService) {
         this.userRepository = userRepository;
         this.authIdentityRepository = authIdentityRepository;
+        this.userSessionRepository = userSessionRepository;
         this.hashingService = hashingService;
         this.tokenService = tokenService;
     }
@@ -49,20 +53,37 @@ public class UserCommandServiceImpl implements UserCommandService {
     @Override
     public Optional<ImmutablePair<User, String>> handle(SignInCommand command) {
         var user = userRepository.findByUsername(command.username());
-        if (user.isEmpty())
+        if (user.isEmpty()) {
+            // Create failed session for non-existent user
+            var failedSession = new UserSession(null, AuthProvider.LOCAL, "LOGIN", false, "User not found");
+            userSessionRepository.save(failedSession);
             throw new RuntimeException("User not found");
+        }
         
         // Find local auth identity for this user
         var authIdentity = authIdentityRepository.findByUserIdAndProvider(user.get().getId(), AuthProvider.LOCAL);
-        if (authIdentity.isEmpty())
+        if (authIdentity.isEmpty()) {
+            // Create failed session
+            var failedSession = new UserSession(user.get(), AuthProvider.LOCAL, "LOGIN", false, "No local authentication found");
+            userSessionRepository.save(failedSession);
             throw new RuntimeException("No local authentication found for user");
+        }
         
-        if (!hashingService.matches(command.password(), authIdentity.get().getPasswordHash()))
+        if (!hashingService.matches(command.password(), authIdentity.get().getPasswordHash())) {
+            // Create failed session
+            var failedSession = new UserSession(user.get(), AuthProvider.LOCAL, "LOGIN", false, "Invalid password");
+            userSessionRepository.save(failedSession);
             throw new RuntimeException("Invalid password");
+        }
         
         // Update last login
         authIdentity.get().updateLastLogin();
         authIdentityRepository.save(authIdentity.get());
+        
+        // Create successful session
+        var session = new UserSession(user.get(), AuthProvider.LOCAL, "LOGIN", true);
+        userSessionRepository.save(session);
+        user.get().addSession(session);
         
         var token = tokenService.generateToken(user.get().getUsername());
         return Optional.of(ImmutablePair.of(user.get(), token));
