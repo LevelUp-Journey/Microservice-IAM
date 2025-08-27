@@ -1,7 +1,7 @@
 package com.levelupjourney.microserviceiam.IAM.domain.model.aggregates;
 
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role;
-import com.levelupjourney.microserviceiam.IAM.domain.model.entities.ExternalIdentity;
+import com.levelupjourney.microserviceiam.IAM.domain.model.entities.AuthIdentity;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -51,9 +51,6 @@ public class User {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
-    @NotBlank
-    @Size(max = 120)
-    private String password;
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable( name = "user_roles",
@@ -62,7 +59,7 @@ public class User {
     private Set<Role> roles;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private Set<ExternalIdentity> externalIdentities = new HashSet<>();
+    private Set<AuthIdentity> authIdentities = new HashSet<>();
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)
@@ -74,18 +71,21 @@ public class User {
 
     public User() {
         this.roles = new HashSet<>();
-        this.externalIdentities = new HashSet<>();
+        this.authIdentities = new HashSet<>();
     }
 
-    public User(String username, String password) {
+    public User(String username) {
         this.username = username;
-        this.password = password;
         this.roles = new HashSet<>();
-        this.externalIdentities = new HashSet<>();
+        this.authIdentities = new HashSet<>();
+        // Assign default STUDENT role
+        this.addRole(Role.getDefaultRole());
     }
 
-    public User(String username, String password, List<Role> roles) {
-        this(username, password);
+    public User(String username, List<Role> roles) {
+        this.username = username;
+        this.roles = new HashSet<>();
+        this.authIdentities = new HashSet<>();
         addRoles(roles);
     }
 
@@ -94,8 +94,11 @@ public class User {
         this.name = name;
         this.avatarUrl = avatarUrl;
         this.emailVerified = emailVerified;
+        this.username = name; // Use full name as username for OAuth users
         this.roles = new HashSet<>();
-        this.externalIdentities = new HashSet<>();
+        this.authIdentities = new HashSet<>();
+        // Assign default STUDENT role
+        this.addRole(Role.getDefaultRole());
     }
 
     /**
@@ -120,23 +123,23 @@ public class User {
     }
 
     /**
-     * Add an external identity to the user
-     * @param externalIdentity the external identity to add
-     * @return the user with the added external identity
+     * Add an auth identity to the user
+     * @param authIdentity the auth identity to add
+     * @return the user with the added auth identity
      */
-    public User addExternalIdentity(ExternalIdentity externalIdentity) {
-        this.externalIdentities.add(externalIdentity);
+    public User addAuthIdentity(AuthIdentity authIdentity) {
+        this.authIdentities.add(authIdentity);
         return this;
     }
 
     /**
-     * Get external identity by provider
+     * Get auth identity by provider
      * @param provider the provider name
-     * @return the external identity if found, null otherwise
+     * @return the auth identity if found, null otherwise
      */
-    public ExternalIdentity getExternalIdentityByProvider(String provider) {
-        return externalIdentities.stream()
-                .filter(identity -> identity.getProvider().equals(provider))
+    public AuthIdentity getAuthIdentityByProvider(String provider) {
+        return authIdentities.stream()
+                .filter(identity -> identity.getProvider().name().equals(provider))
                 .findFirst()
                 .orElse(null);
     }
