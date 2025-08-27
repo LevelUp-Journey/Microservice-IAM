@@ -1,8 +1,8 @@
 package com.levelupjourney.microserviceiam.IAM.domain.model.entities;
 
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.User;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,10 +17,10 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "external_identities",
+@Table(name = "auth_identities",
        uniqueConstraints = @UniqueConstraint(columnNames = {"provider", "provider_user_id"}))
 @EntityListeners(AuditingEntityListener.class)
-public class ExternalIdentity {
+public class AuthIdentity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -32,14 +32,19 @@ public class ExternalIdentity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @NotBlank
-    @Column(nullable = false, length = 50)
-    private String provider;
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AuthProvider provider;
 
-    @NotBlank
-    @Column(name = "provider_user_id", nullable = false)
+    @Column(name = "provider_user_id")
     private String providerUserId;
 
+    // For local auth
+    @Column(name = "password_hash", columnDefinition = "TEXT")
+    private String passwordHash;
+
+    // For OAuth providers
     @Column(name = "access_token", columnDefinition = "TEXT")
     private String accessToken;
 
@@ -52,6 +57,9 @@ public class ExternalIdentity {
     @Column(name = "scope")
     private String scope;
 
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -60,18 +68,31 @@ public class ExternalIdentity {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public ExternalIdentity(User user, String provider, String providerUserId, String scope) {
+    // Constructor for local auth
+    public AuthIdentity(User user, AuthProvider provider, String passwordHash) {
+        this.user = user;
+        this.provider = provider;
+        this.passwordHash = passwordHash;
+    }
+
+    // Constructor for OAuth providers
+    public AuthIdentity(User user, AuthProvider provider, String providerUserId, String scope) {
         this.user = user;
         this.provider = provider;
         this.providerUserId = providerUserId;
         this.scope = scope;
     }
 
-    public ExternalIdentity(User user, String provider, String providerUserId, String accessToken, 
+    // Constructor for OAuth providers with tokens
+    public AuthIdentity(User user, AuthProvider provider, String providerUserId, String accessToken, 
                            String refreshToken, LocalDateTime expiresAt, String scope) {
         this(user, provider, providerUserId, scope);
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.expiresAt = expiresAt;
+    }
+
+    public void updateLastLogin() {
+        this.lastLoginAt = LocalDateTime.now();
     }
 }

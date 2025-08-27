@@ -2,39 +2,33 @@ package com.levelupjourney.microserviceiam.IAM.application.internal.commandservi
 
 import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.oauth.GoogleOAuth2Service;
 import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.tokens.TokenService;
-import com.levelupjourney.microserviceiam.IAM.infrastructure.hashing.bcrypt.BCryptHashingService;
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.User;
-import com.levelupjourney.microserviceiam.IAM.domain.model.entities.ExternalIdentity;
-import com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Roles;
-import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.ExternalIdentityRepository;
+import com.levelupjourney.microserviceiam.IAM.domain.model.entities.AuthIdentity;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider;
+import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.AuthIdentityRepository;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 @Service
-public class OAuth2CommandService {
+public class OAuth2CommandServiceImpl {
 
     private final GoogleOAuth2Service googleOAuth2Service;
     private final UserRepository userRepository;
-    private final ExternalIdentityRepository externalIdentityRepository;
+    private final AuthIdentityRepository authIdentityRepository;
     private final TokenService tokenService;
-    private final BCryptHashingService hashingService;
 
-    public OAuth2CommandService(GoogleOAuth2Service googleOAuth2Service,
+    public OAuth2CommandServiceImpl(GoogleOAuth2Service googleOAuth2Service,
                                UserRepository userRepository,
-                               ExternalIdentityRepository externalIdentityRepository,
-                               TokenService tokenService,
-                               BCryptHashingService hashingService) {
+                               AuthIdentityRepository authIdentityRepository,
+                               TokenService tokenService) {
         this.googleOAuth2Service = googleOAuth2Service;
         this.userRepository = userRepository;
-        this.externalIdentityRepository = externalIdentityRepository;
+        this.authIdentityRepository = authIdentityRepository;
         this.tokenService = tokenService;
-        this.hashingService = hashingService;
     }
 
     @Transactional
@@ -54,14 +48,14 @@ public class OAuth2CommandService {
         }
 
         User user = findOrCreateUser(userInfo);
-        createOrUpdateExternalIdentity(user, userInfo, tokenResponse);
+        createOrUpdateAuthIdentity(user, userInfo, tokenResponse);
 
         return tokenService.generateToken(user.getUsername());
     }
 
     private User findOrCreateUser(GoogleOAuth2Service.GoogleUserInfo userInfo) {
-        Optional<ExternalIdentity> existingIdentity = 
-            externalIdentityRepository.findByProviderAndProviderUserId("google", userInfo.getId());
+        Optional<AuthIdentity> existingIdentity = 
+            authIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, userInfo.getId());
 
         if (existingIdentity.isPresent()) {
             return existingIdentity.get().getUser();
@@ -79,57 +73,38 @@ public class OAuth2CommandService {
             true
         );
 
-        newUser.setUsername(generateUsernameFromEmail(userInfo.getEmail()));
-        // OAuth users get a hashed placeholder password
-        String oauthPassword = "OAUTH_USER_" + userInfo.getId();
-        newUser.setPassword(hashingService.encode(oauthPassword));
-        
-        Role userRole = new Role(Roles.ROLE_USER);
-        newUser.addRoles(List.of(userRole));
-
         return userRepository.save(newUser);
     }
 
-    private void createOrUpdateExternalIdentity(User user, 
+    private void createOrUpdateAuthIdentity(User user, 
                                                GoogleOAuth2Service.GoogleUserInfo userInfo,
                                                GoogleOAuth2Service.GoogleTokenResponse tokenResponse) {
-        Optional<ExternalIdentity> existingIdentity = 
-            externalIdentityRepository.findByProviderAndProviderUserId("google", userInfo.getId());
+        Optional<AuthIdentity> existingIdentity = 
+            authIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, userInfo.getId());
 
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(tokenResponse.getExpiresIn());
 
         if (existingIdentity.isPresent()) {
-            ExternalIdentity identity = existingIdentity.get();
+            AuthIdentity identity = existingIdentity.get();
             identity.setAccessToken(tokenResponse.getAccessToken());
             identity.setRefreshToken(tokenResponse.getRefreshToken());
             identity.setExpiresAt(expiresAt);
             identity.setScope(tokenResponse.getScope());
-            externalIdentityRepository.save(identity);
+            identity.updateLastLogin();
+            authIdentityRepository.save(identity);
         } else {
-            ExternalIdentity newIdentity = new ExternalIdentity(
+            AuthIdentity newIdentity = new AuthIdentity(
                 user,
-                "google",
+                AuthProvider.GOOGLE,
                 userInfo.getId(),
                 tokenResponse.getAccessToken(),
                 tokenResponse.getRefreshToken(),
                 expiresAt,
                 tokenResponse.getScope()
             );
-            externalIdentityRepository.save(newIdentity);
-            user.addExternalIdentity(newIdentity);
+            authIdentityRepository.save(newIdentity);
+            user.addAuthIdentity(newIdentity);
         }
     }
 
-    private String generateUsernameFromEmail(String email) {
-        String baseUsername = email.split("@")[0];
-        String username = baseUsername;
-        int counter = 1;
-        
-        while (userRepository.existsByUsername(username)) {
-            username = baseUsername + counter;
-            counter++;
-        }
-        
-        return username;
-    }
 }
