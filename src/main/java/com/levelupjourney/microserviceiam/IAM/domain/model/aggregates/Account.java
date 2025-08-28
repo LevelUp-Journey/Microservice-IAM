@@ -54,13 +54,9 @@ public class Account extends AuditableAbstractAggregateRoot<Account> {
         this.email = email;
         this.username = username;
         this.status = AccountStatus.ACTIVE;
-        this.credential = new Credential(getAccountId(), passwordHash);
         
-        roles.forEach(role -> 
-            this.roleAssignments.add(new RoleAssignment(getAccountId(), role))
-        );
-
-        addDomainEvent(new AccountRegisteredEvent(getAccountId(), "local", username));
+        // Note: Credential and role assignments will be added after persistence
+        // when the account ID is available
     }
 
     public Account(EmailAddress email, Username username, AuthProvider provider, String providerUserId, String name, Map<String, Object> attributes, Set<Role> roles) {
@@ -68,13 +64,8 @@ public class Account extends AuditableAbstractAggregateRoot<Account> {
         this.username = username;
         this.status = AccountStatus.ACTIVE;
         
-        this.externalIdentities.add(new ExternalIdentity(getAccountId(), provider, providerUserId, attributes));
-        
-        roles.forEach(role -> 
-            this.roleAssignments.add(new RoleAssignment(getAccountId(), role))
-        );
-
-        addDomainEvent(new AccountRegisteredEvent(getAccountId(), provider.provider(), username));
+        // Note: External identities and role assignments will be added after persistence
+        // when the account ID is available
     }
 
     public AccountId getAccountId() {
@@ -136,6 +127,32 @@ public class Account extends AuditableAbstractAggregateRoot<Account> {
 
     public void linkExternalIdentity(AuthProvider provider, String providerUserId, Map<String, Object> attributes) {
         this.externalIdentities.add(new ExternalIdentity(getAccountId(), provider, providerUserId, attributes));
+    }
+    
+    public void initializeLocalAccount(PasswordHash passwordHash, Set<Role> roles, Username username) {
+        // Add credential
+        this.credential = new Credential(getAccountId(), passwordHash);
+        
+        // Add role assignments
+        roles.forEach(role -> 
+            this.roleAssignments.add(new RoleAssignment(getAccountId(), role))
+        );
+
+        // Add domain event
+        addDomainEvent(new AccountRegisteredEvent(getAccountId(), "local", username));
+    }
+    
+    public void initializeOAuth2Account(AuthProvider provider, String providerUserId, Map<String, Object> attributes, Set<Role> roles, Username username) {
+        // Add external identity
+        this.externalIdentities.add(new ExternalIdentity(getAccountId(), provider, providerUserId, attributes));
+        
+        // Add role assignments
+        roles.forEach(role -> 
+            this.roleAssignments.add(new RoleAssignment(getAccountId(), role))
+        );
+
+        // Add domain event
+        addDomainEvent(new AccountRegisteredEvent(getAccountId(), provider.provider(), username));
     }
 
     public enum AccountStatus {

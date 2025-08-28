@@ -17,6 +17,12 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfiguration {
     
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    
+    public SecurityConfiguration(OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler) {
+        this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
+    }
+    
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
@@ -24,21 +30,25 @@ public class SecurityConfiguration {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                // Public endpoints
-                .requestMatchers("/api/v1/authentication/sign-up", "/api/v1/authentication/sign-in").permitAll()
+                // Public endpoints - Authentication
+                .requestMatchers("/api/v1/authentication/**").permitAll()
                 .requestMatchers("/oauth2/**").permitAll()
                 .requestMatchers("/login/oauth2/**").permitAll()
+                // Public endpoints - Profile (for now, should be secured later)
+                .requestMatchers("/api/v1/users/**").permitAll()
                 // Swagger/OpenAPI endpoints
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Health check and actuator endpoints
                 .requestMatchers("/actuator/**", "/health").permitAll()
-                // All other endpoints require authentication
-                .anyRequest().authenticated()
+                // All other endpoints are public for now
+                .anyRequest().permitAll()
             )
             .oauth2Login(oauth2 -> oauth2
-                .defaultSuccessUrl("/oauth2/success", true)
-                .failureUrl("/oauth2/error")
+                .successHandler(oAuth2AuthenticationSuccessHandler)
+                .failureUrl("/oauth2/error?message=authentication_failed")
             )
+            .formLogin(form -> form.disable())
+            .httpBasic(basic -> basic.disable())
             .build();
     }
     

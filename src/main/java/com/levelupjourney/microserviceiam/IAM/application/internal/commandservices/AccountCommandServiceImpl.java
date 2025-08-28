@@ -45,7 +45,15 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         PasswordHash hashedPassword = new PasswordHash(hashingService.encode(command.password()));
         Account account = new Account(command.email(), command.username(), hashedPassword, command.roles());
         
+        // Save first to generate the ID
         Account savedAccount = accountRepository.save(account);
+        
+        // Now initialize local account entities with the generated account ID
+        savedAccount.initializeLocalAccount(hashedPassword, command.roles(), command.username());
+        
+        // Save again with the initialized entities
+        savedAccount = accountRepository.save(savedAccount);
+        
         auditService.auditSignUp(savedAccount.getAccountId(), null);
         
         return Optional.of(savedAccount);
@@ -111,7 +119,16 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         Account newAccount = new Account(command.email(), generatedUsername, command.provider(), 
                                        command.providerUserId(), command.name(), command.attributes(), command.roles());
         
+        // Save first to generate the ID
         Account savedAccount = accountRepository.save(newAccount);
+        
+        // Now initialize OAuth2-specific entities with the generated account ID
+        savedAccount.initializeOAuth2Account(command.provider(), command.providerUserId(), 
+                                           command.attributes(), command.roles(), generatedUsername);
+        
+        // Save again with the initialized entities
+        savedAccount = accountRepository.save(savedAccount);
+        
         auditService.auditSignUp(savedAccount.getAccountId(), null);
         auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), null);
         

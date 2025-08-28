@@ -10,6 +10,7 @@ import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
+import jakarta.servlet.http.HttpServletResponse;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.*;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.AuthenticatedUserResourceFromEntityAssembler;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.SignUpCommandFromResourceAssembler;
@@ -24,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -192,29 +194,23 @@ public class AuthenticationController {
     }
     
     @GetMapping("/oauth2/google")
-    @Operation(summary = "Get Google OAuth2 authorization URL", description = "Returns Google OAuth2 authorization URL for client-side redirect")
+    @Operation(summary = "Redirect to Google OAuth2 authorization", description = "Redirects directly to Google OAuth2 authorization")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Google OAuth2 authorization URL returned"),
+        @ApiResponse(responseCode = "302", description = "Redirect to Google OAuth2"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<Map<String, String>> googleOAuth2() {
-        return ResponseEntity.ok(Map.of(
-            "authorization_url", "/oauth2/authorization/google",
-            "provider", "google"
-        ));
+    public void googleOAuth2(HttpServletResponse response) throws IOException {
+        response.sendRedirect("/oauth2/authorization/google");
     }
     
     @GetMapping("/oauth2/github")
-    @Operation(summary = "Get GitHub OAuth2 authorization URL", description = "Returns GitHub OAuth2 authorization URL for client-side redirect")
+    @Operation(summary = "Redirect to GitHub OAuth2 authorization", description = "Redirects directly to GitHub OAuth2 authorization")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "GitHub OAuth2 authorization URL returned"),
+        @ApiResponse(responseCode = "302", description = "Redirect to GitHub OAuth2"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<Map<String, String>> githubOAuth2() {
-        return ResponseEntity.ok(Map.of(
-            "authorization_url", "/oauth2/authorization/github",
-            "provider", "github"
-        ));
+    public void githubOAuth2(HttpServletResponse response) throws IOException {
+        response.sendRedirect("/oauth2/authorization/github");
     }
 
     @GetMapping("/oauth2/callback")
