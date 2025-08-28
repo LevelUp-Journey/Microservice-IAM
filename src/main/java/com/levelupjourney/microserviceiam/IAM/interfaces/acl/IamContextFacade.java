@@ -8,7 +8,6 @@ import com.levelupjourney.microserviceiam.IAM.domain.services.UserQueryService;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 
 /**
  * IamContextFacade
@@ -30,35 +29,20 @@ public class IamContextFacade {
     }
 
     /**
-     * Creates a user with the given username and password.
+     * Creates a user with the given email, username and password.
      * User is assigned STUDENT role by default.
+     * @param email The email of the user.
      * @param username The username of the user.
      * @param password The password of the user.
      * @return The id of the created user.
      */
-    public java.util.UUID createUser(String username, String password) {
-        var signUpCommand = new SignUpCommand(username, password);
+    public java.util.UUID createUser(String email, String username, String password) {
+        var signUpCommand = new SignUpCommand(email, username, password);
         var result = userCommandService.handle(signUpCommand);
         if (result.isEmpty()) return null;
         return result.get().getId();
     }
 
-    /**
-     * Creates a user with the given username, password and roles.
-     * @param username The username of the user.
-     * @param password The password of the user.
-     * @param roleNames The names of the roles of the user. When a role does not exist, it is ignored.
-     * @return The id of the created user.
-     * @deprecated Use createUser(String, String) instead. Users are assigned STUDENT role by default.
-     */
-    @Deprecated
-    public java.util.UUID createUser(String username, String password, List<String> roleNames) {
-        // For backward compatibility, create user with default role and then update roles if needed
-        var signUpCommand = new SignUpCommand(username, password);
-        var result = userCommandService.handle(signUpCommand);
-        if (result.isEmpty()) return null;
-        return result.get().getId();
-    }
 
     /**
      * Fetches the id of the user with the given username.

@@ -10,9 +10,10 @@ import jakarta.validation.constraints.NotBlank;
  *     Users are assigned STUDENT role by default.
  * </p>
  * @param email the email of the user
+ * @param username the username of the user
  * @param password the password of the user
  *
  * @see com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.User
  */
-public record SignUpCommand(@NotBlank @Email String email, @NotBlank String password) {
+public record SignUpCommand(@NotBlank @Email String email, @NotBlank String username, @NotBlank String password) {
 }

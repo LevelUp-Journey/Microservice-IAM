@@ -1,20 +1,29 @@
 package com.levelupjourney.microserviceiam.IAM.interfaces.rest;
 
+import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.tokens.TokenService;
 import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetAllUsersQuery;
 import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetUserByIdQuery;
+import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetUserByUsernameQuery;
+import com.levelupjourney.microserviceiam.IAM.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.IAM.domain.services.UserQueryService;
+import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.UpdateUserProfileResource;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.UserResource;
+import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.UpdateUserProfileCommandFromResourceAssembler;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.UserResourceFromEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import io.swagger.v3.oas.annotations.Parameter;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,9 +40,13 @@ import java.util.List;
 @Tag(name = "Users", description = "Available User Endpoints")
 public class UsersController {
     private final UserQueryService userQueryService;
+    private final UserCommandService userCommandService;
+    private final TokenService tokenService;
 
-    public UsersController(UserQueryService userQueryService) {
+    public UsersController(UserQueryService userQueryService, UserCommandService userCommandService, TokenService tokenService) {
         this.userQueryService = userQueryService;
+        this.userCommandService = userCommandService;
+        this.tokenService = tokenService;
     }
 
     /**
@@ -78,5 +91,63 @@ public class UsersController {
         }
         var userResource = UserResourceFromEntityAssembler.toResourceFromEntity(user.get());
         return ResponseEntity.ok(userResource);
+    }
+
+    /**
+     * Updates the current user's profile
+     * @param updateUserProfileResource the resource with the updated user data
+     * @param request the HTTP request to extract the JWT token
+     * @return the updated user resource
+     * @see UpdateUserProfileResource
+     * @see UserResource
+     */
+    @PutMapping(value = "/me")
+    @Operation(summary = "Update current user profile", description = "Update the profile of the currently authenticated user.",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User profile updated successfully."),
+            @ApiResponse(responseCode = "400", description = "Bad request - validation errors."),
+            @ApiResponse(responseCode = "404", description = "User not found."),
+            @ApiResponse(responseCode = "401", description = "Unauthorized.")})
+    public ResponseEntity<UserResource> updateCurrentUserProfile(
+        @Valid @RequestBody UpdateUserProfileResource updateUserProfileResource,
+        HttpServletRequest request) {
+        
+        String token = extractTokenFromRequest(request);
+        if (token == null) {
+            return ResponseEntity.status(401).build();
+        }
+        
+        String username = tokenService.getUsernameFromToken(token);
+        
+        var getUserQuery = new GetUserByUsernameQuery(username);
+        var currentUser = userQueryService.handle(getUserQuery);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        var updateCommand = UpdateUserProfileCommandFromResourceAssembler
+            .toCommandFromResource(currentUser.get().getId(), updateUserProfileResource);
+        
+        var updatedUser = userCommandService.handle(updateCommand);
+        if (updatedUser.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        var userResource = UserResourceFromEntityAssembler.toResourceFromEntity(updatedUser.get());
+        return ResponseEntity.ok(userResource);
+    }
+    
+    /**
+     * Extracts the JWT token from the Authorization header
+     * @param request the HTTP request
+     * @return the JWT token without the "Bearer " prefix, or null if not found
+     */
+    private String extractTokenFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
     }
 }

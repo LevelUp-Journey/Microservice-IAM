@@ -5,6 +5,6 @@ import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.SignUpRe
 
 public class SignUpCommandFromResourceAssembler {
     public static SignUpCommand toCommandFromResource(SignUpResource resource) {
-        return new SignUpCommand(resource.email(), resource.password());
+        return new SignUpCommand(resource.email(), resource.username(), resource.password());
     }
 }
