@@ -3,7 +3,6 @@ package com.levelupjourney.microserviceiam.Profile.interfaces.rest.transform;
 import com.levelupjourney.microserviceiam.Profile.domain.model.aggregates.UserProfile;
 import com.levelupjourney.microserviceiam.Profile.interfaces.rest.resources.UserProfileResource;
 
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 public class UserProfileResourceFromEntityAssembler {
