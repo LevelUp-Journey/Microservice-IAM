@@ -3,10 +3,12 @@ package com.levelupjourney.microserviceiam.IAM.interfaces.rest;
 import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.tokens.TokenService;
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.ChangePasswordCommand;
+import com.levelupjourney.microserviceiam.IAM.domain.model.commands.OAuth2SignInCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignInCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.UpdateUsernameCommand;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Username;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.*;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.AuthenticatedUserResourceFromEntityAssembler;
@@ -23,6 +25,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -186,5 +189,152 @@ public class AuthenticationController {
             return ResponseEntity.badRequest()
                 .body(new MessageResource("Failed to update username: " + e.getMessage()));
         }
+    }
+    
+    @GetMapping("/oauth2/google")
+    @Operation(summary = "Get Google OAuth2 authorization URL", description = "Returns Google OAuth2 authorization URL for client-side redirect")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Google OAuth2 authorization URL returned"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<Map<String, String>> googleOAuth2() {
+        return ResponseEntity.ok(Map.of(
+            "authorization_url", "/oauth2/authorization/google",
+            "provider", "google"
+        ));
+    }
+    
+    @GetMapping("/oauth2/github")
+    @Operation(summary = "Get GitHub OAuth2 authorization URL", description = "Returns GitHub OAuth2 authorization URL for client-side redirect")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "GitHub OAuth2 authorization URL returned"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<Map<String, String>> githubOAuth2() {
+        return ResponseEntity.ok(Map.of(
+            "authorization_url", "/oauth2/authorization/github",
+            "provider", "github"
+        ));
+    }
+
+    @GetMapping("/oauth2/callback")
+    @Operation(summary = "Handle OAuth2 callback from providers", description = "Processes OAuth2 callback and returns authentication tokens")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "OAuth2 authentication successful"),
+        @ApiResponse(responseCode = "400", description = "Authentication failed"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<Map<String, Object>> oauth2Callback(@AuthenticationPrincipal OAuth2User oauth2User) {
+        try {
+            if (oauth2User == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "AUTHENTICATION_FAILED",
+                    "message", "OAuth2 authentication failed"
+                ));
+            }
+
+            // Determine provider from OAuth2User attributes
+            String provider = determineProvider(oauth2User);
+            String providerUserId = oauth2User.getAttribute("id").toString();
+            String email = extractEmail(oauth2User, provider);
+            String name = extractName(oauth2User, provider);
+            
+            // Create OAuth2SignInCommand
+            AuthProvider authProvider = switch (provider.toLowerCase()) {
+                case "google" -> AuthProvider.google();
+                case "github" -> AuthProvider.github();
+                default -> throw new IllegalArgumentException("Unsupported provider: " + provider);
+            };
+            
+            OAuth2SignInCommand command = new OAuth2SignInCommand(
+                authProvider,
+                providerUserId,
+                new EmailAddress(email),
+                name,
+                oauth2User.getAttributes(),
+                Set.of(Role.getDefaultRole())
+            );
+            
+            // Handle OAuth2 sign in
+            var accountOpt = accountCommandService.handle(command);
+            
+            if (accountOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "SIGN_IN_FAILED",
+                    "message", "OAuth2 sign in failed"
+                ));
+            }
+            
+            Account account = accountOpt.get();
+            String accessToken = tokenService.generateToken(account);
+            String refreshToken = tokenService.generateRefreshToken(account);
+            
+            var userResource = AuthenticatedUserResourceFromEntityAssembler
+                .toResourceFromEntity(account, accessToken, refreshToken);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "OAuth2 authentication successful",
+                "user", userResource,
+                "provider", provider
+            ));
+            
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of(
+                "error", "INTERNAL_ERROR",
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    @GetMapping("/oauth2/status")
+    @Operation(summary = "Get current OAuth2 authentication status", description = "Returns current OAuth2 authentication status")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Authentication status returned"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    public ResponseEntity<Map<String, Object>> oauth2Status(@AuthenticationPrincipal OAuth2User oauth2User) {
+        if (oauth2User != null) {
+            return ResponseEntity.ok(Map.of(
+                "authenticated", true,
+                "provider", determineProvider(oauth2User),
+                "name", extractName(oauth2User, determineProvider(oauth2User)),
+                "email", extractEmail(oauth2User, determineProvider(oauth2User))
+            ));
+        } else {
+            return ResponseEntity.ok(Map.of("authenticated", false));
+        }
+    }
+    
+    private String determineProvider(OAuth2User oauth2User) {
+        // Check for Google-specific attributes
+        if (oauth2User.getAttributes().containsKey("sub")) {
+            return "google";
+        }
+        // Check for GitHub-specific attributes
+        if (oauth2User.getAttributes().containsKey("login")) {
+            return "github";
+        }
+        // Default fallback
+        return "unknown";
+    }
+    
+    private String extractEmail(OAuth2User oauth2User, String provider) {
+        return switch (provider.toLowerCase()) {
+            case "google" -> oauth2User.getAttribute("email");
+            case "github" -> oauth2User.getAttribute("email");
+            default -> oauth2User.getAttribute("email");
+        };
+    }
+    
+    private String extractName(OAuth2User oauth2User, String provider) {
+        return switch (provider.toLowerCase()) {
+            case "google" -> oauth2User.getAttribute("name");
+            case "github" -> {
+                String name = oauth2User.getAttribute("name");
+                yield name != null ? name : oauth2User.getAttribute("login");
+            }
+            default -> oauth2User.getAttribute("name");
+        };
     }
 }

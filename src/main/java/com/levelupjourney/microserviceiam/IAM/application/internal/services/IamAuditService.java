@@ -16,80 +16,73 @@ public class IamAuditService {
         this.auditRepository = auditRepository;
     }
     
-    public void auditSignUp(AccountId accountId, String ipAddress, String userAgent) {
+    public void auditSignUp(AccountId accountId, String userAgent) {
         IamAudit audit = new IamAudit(
             accountId, 
             IamAudit.Actions.SIGNED_UP,
-            ipAddress,
             userAgent
         );
         auditRepository.save(audit);
     }
     
-    public void auditSignIn(AccountId accountId, String ipAddress, String userAgent) {
+    public void auditSignIn(AccountId accountId, String userAgent) {
         IamAudit audit = new IamAudit(
             accountId, 
             IamAudit.Actions.SIGNED_IN,
-            ipAddress,
             userAgent
         );
         auditRepository.save(audit);
     }
     
-    public void auditOAuth2Link(AccountId accountId, String provider, String ipAddress, String userAgent) {
+    public void auditOAuth2Link(AccountId accountId, String provider, String userAgent) {
         IamAudit audit = new IamAudit(
             accountId,
             accountId, 
             IamAudit.Actions.OAUTH_LINKED,
-            ipAddress,
             userAgent,
             Map.of("provider", provider)
         );
         auditRepository.save(audit);
     }
     
-    public void auditPasswordChange(AccountId actorId, AccountId accountId, String ipAddress, String userAgent) {
+    public void auditPasswordChange(AccountId actorId, AccountId accountId, String userAgent) {
         IamAudit audit = new IamAudit(
             actorId,
             accountId,
             IamAudit.Actions.PASSWORD_CHANGED,
-            ipAddress,
             userAgent,
             Map.of()
         );
         auditRepository.save(audit);
     }
     
-    public void auditUsernameChange(AccountId actorId, AccountId accountId, String oldUsername, String newUsername, String ipAddress, String userAgent) {
+    public void auditUsernameChange(AccountId actorId, AccountId accountId, String oldUsername, String newUsername, String userAgent) {
         IamAudit audit = new IamAudit(
             actorId,
             accountId,
             IamAudit.Actions.USERNAME_CHANGED,
-            ipAddress,
             userAgent,
             Map.of("oldUsername", oldUsername, "newUsername", newUsername)
         );
         auditRepository.save(audit);
     }
     
-    public void auditRoleAssignment(AccountId actorId, AccountId accountId, String role, String ipAddress, String userAgent) {
+    public void auditRoleAssignment(AccountId actorId, AccountId accountId, String role, String userAgent) {
         IamAudit audit = new IamAudit(
             actorId,
             accountId,
             IamAudit.Actions.ROLE_ASSIGNED,
-            ipAddress,
             userAgent,
             Map.of("role", role)
         );
         auditRepository.save(audit);
     }
     
-    public void auditAccountDeactivation(AccountId actorId, AccountId accountId, String ipAddress, String userAgent) {
+    public void auditAccountDeactivation(AccountId actorId, AccountId accountId, String userAgent) {
         IamAudit audit = new IamAudit(
             actorId,
             accountId,
             IamAudit.Actions.ACCOUNT_DEACTIVATED,
-            ipAddress,
             userAgent,
             Map.of()
         );

@@ -33,9 +33,6 @@ public class IamAudit extends AuditableModel {
     @Column(name = "action", nullable = false)
     private String action;
 
-    @Column(name = "ip_address")
-    private String ipAddress;
-
     @Column(name = "user_agent")
     private String userAgent;
 
@@ -50,19 +47,18 @@ public class IamAudit extends AuditableModel {
 
     public IamAudit() {}
 
-    public IamAudit(AccountId actorId, AccountId accountId, String action, String ipAddress, String userAgent, Map<String, Object> metadata) {
+    public IamAudit(AccountId actorId, AccountId accountId, String action, String userAgent, Map<String, Object> metadata) {
         this.auditId = UUID.randomUUID();
         this.actorId = actorId;
         this.accountId = accountId;
         this.action = action;
-        this.ipAddress = ipAddress;
         this.userAgent = userAgent;
         this.auditCreatedAt = LocalDateTime.now();
         setMetadata(metadata);
     }
 
-    public IamAudit(AccountId accountId, String action, String ipAddress, String userAgent) {
-        this(accountId, accountId, action, ipAddress, userAgent, Map.of());
+    public IamAudit(AccountId accountId, String action, String userAgent) {
+        this(accountId, accountId, action, userAgent, Map.of());
     }
 
     private void setMetadata(Map<String, Object> metadata) {

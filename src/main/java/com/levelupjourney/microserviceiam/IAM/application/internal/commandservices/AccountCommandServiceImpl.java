@@ -46,7 +46,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         Account account = new Account(command.email(), command.username(), hashedPassword, command.roles());
         
         Account savedAccount = accountRepository.save(account);
-        auditService.auditSignUp(savedAccount.getAccountId(), null, null);
+        auditService.auditSignUp(savedAccount.getAccountId(), null);
         
         return Optional.of(savedAccount);
     }
@@ -74,7 +74,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
             return Optional.empty();
         }
         
-        auditService.auditSignIn(account.getAccountId(), null, null);
+        auditService.auditSignIn(account.getAccountId(), null);
         return Optional.of(account);
     }
     
@@ -88,7 +88,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         if (existingIdentity.isPresent()) {
             Optional<Account> account = accountRepository.findById(existingIdentity.get().getAccountId().value());
             if (account.isPresent()) {
-                auditService.auditSignIn(account.get().getAccountId(), null, null);
+                auditService.auditSignIn(account.get().getAccountId(), null);
                 return account;
             }
         }
@@ -98,7 +98,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
             if (existingAccount.isPresent()) {
                 existingAccount.get().linkExternalIdentity(command.provider(), command.providerUserId(), command.attributes());
                 Account savedAccount = accountRepository.save(existingAccount.get());
-                auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), null, null);
+                auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), null);
                 return Optional.of(savedAccount);
             }
         }
@@ -112,8 +112,8 @@ public class AccountCommandServiceImpl implements AccountCommandService {
                                        command.providerUserId(), command.name(), command.attributes(), command.roles());
         
         Account savedAccount = accountRepository.save(newAccount);
-        auditService.auditSignUp(savedAccount.getAccountId(), null, null);
-        auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), null, null);
+        auditService.auditSignUp(savedAccount.getAccountId(), null);
+        auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), null);
         
         return Optional.of(savedAccount);
     }
@@ -141,7 +141,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         account.changePassword(newHashedPassword);
         
         accountRepository.save(account);
-        auditService.auditPasswordChange(command.accountId(), command.accountId(), null, null);
+        auditService.auditPasswordChange(command.accountId(), command.accountId(), null);
         
         return Optional.of(account.getAccountId());
     }
@@ -165,7 +165,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         
         accountRepository.save(account);
         auditService.auditUsernameChange(command.accountId(), command.accountId(), 
-                                       oldUsername, command.newUsername().value(), null, null);
+                                       oldUsername, command.newUsername().value(), null);
         
         return Optional.of(account.getAccountId());
     }

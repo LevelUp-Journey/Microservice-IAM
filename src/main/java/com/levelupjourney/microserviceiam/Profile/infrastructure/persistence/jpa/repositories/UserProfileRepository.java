@@ -29,4 +29,11 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, UUID> 
            "LOWER(up.username.value) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR " +
            "LOWER(up.name.value) LIKE LOWER(CONCAT('%', :searchQuery, '%')))")
     Page<UserProfile> findAllWithSearch(@Param("searchQuery") String searchQuery, Pageable pageable);
+    
+    @Query("SELECT up FROM UserProfile up WHERE " +
+           "LOWER(up.username.value) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+    Page<UserProfile> findByUsernameContainingIgnoreCase(@Param("searchTerm") String searchTerm, Pageable pageable);
+    
+    @Query("SELECT up FROM UserProfile up JOIN up.roles r WHERE r = :role")
+    Page<UserProfile> findByRole(@Param("role") String role, Pageable pageable);
 }
