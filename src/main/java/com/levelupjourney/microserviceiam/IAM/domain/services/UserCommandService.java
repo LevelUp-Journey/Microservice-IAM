@@ -3,6 +3,7 @@ package com.levelupjourney.microserviceiam.IAM.domain.services;
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignInCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignUpCommand;
+import com.levelupjourney.microserviceiam.IAM.domain.model.commands.UpdateUserProfileCommand;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import java.util.Optional;
@@ -28,5 +29,11 @@ public interface UserCommandService {
      */
     Optional<User> handle(SignUpCommand command);
 
+    /**
+     * Handle update user profile command
+     * @param command the {@link UpdateUserProfileCommand} command
+     * @return an {@link Optional} of {@link User} entity
+     */
+    Optional<User> handle(UpdateUserProfileCommand command);
 
 }
