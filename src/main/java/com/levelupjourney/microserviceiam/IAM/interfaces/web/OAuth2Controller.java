@@ -1,330 +1,162 @@
 package com.levelupjourney.microserviceiam.IAM.interfaces.web;
 
-import com.levelupjourney.microserviceiam.IAM.application.internal.commandservices.OAuth2CommandServiceImpl;
-import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.oauth.GoogleOAuth2Service;
-import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.oauth.GitHubOAuth2Service;
+import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.tokens.TokenService;
+import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
+import com.levelupjourney.microserviceiam.IAM.domain.model.commands.OAuth2SignInCommand;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.*;
+import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Optional;
+import java.util.Map;
+import java.util.Set;
 
 @Controller
-@RequestMapping("/oauth2")
-@Tag(name = "OAuth2 Authentication", description = "OAuth2 Authentication Flow for Google and GitHub")
+@Tag(name = "OAuth2 Authentication", description = "OAuth2 authentication endpoints for Google and GitHub")
 public class OAuth2Controller {
-
-    private static final Logger logger = LoggerFactory.getLogger(OAuth2Controller.class);
-
-    private final GoogleOAuth2Service googleOAuth2Service;
-    private final GitHubOAuth2Service gitHubOAuth2Service;
-    private final OAuth2CommandServiceImpl oAuth2CommandService;
-
-    private static final String OAUTH_STATE_COOKIE = "oauth_state";
-    private static final String OAUTH_PROVIDER_COOKIE = "oauth_provider";
-    private static final String FRONTEND_URL = "http://localhost:8080/oauth2/success";
-
-    public OAuth2Controller(GoogleOAuth2Service googleOAuth2Service,
-                           GitHubOAuth2Service gitHubOAuth2Service,
-                           OAuth2CommandServiceImpl oAuth2CommandService) {
-        this.googleOAuth2Service = googleOAuth2Service;
-        this.gitHubOAuth2Service = gitHubOAuth2Service;
-        this.oAuth2CommandService = oAuth2CommandService;
+    
+    private final AccountCommandService accountCommandService;
+    private final TokenService tokenService;
+    
+    public OAuth2Controller(AccountCommandService accountCommandService, TokenService tokenService) {
+        this.accountCommandService = accountCommandService;
+        this.tokenService = tokenService;
     }
-
-    @GetMapping("/google")
-    @Operation(
-        summary = "Start Google OAuth2 authentication",
-        description = "Redirects the user to Google's OAuth2 authorization server"
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "302", description = "Redirect to Google OAuth2 authorization server"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public void startGoogleAuth(HttpServletResponse response) throws IOException {
-        String state = googleOAuth2Service.generateState();
-        String authUrl = googleOAuth2Service.buildAuthorizationUrl(state);
-
-        logger.info("Starting Google OAuth2 authentication with state: {}", state);
-        
-        // Set state cookie with proper attributes
-        Cookie stateCookie = new Cookie(OAUTH_STATE_COOKIE, state);
-        stateCookie.setHttpOnly(true);
-        stateCookie.setSecure(false); // Set to true in production with HTTPS
-        stateCookie.setPath("/");
-        stateCookie.setMaxAge(600); // 10 minutes
-        response.addCookie(stateCookie);
-        response.addHeader("Set-Cookie", OAUTH_STATE_COOKIE + "=" + state + "; Path=/; Max-Age=600; HttpOnly; SameSite=Lax");
-
-        // Set provider cookie to identify Google
-        Cookie providerCookie = new Cookie(OAUTH_PROVIDER_COOKIE, "google");
-        providerCookie.setHttpOnly(true);
-        providerCookie.setSecure(false);
-        providerCookie.setPath("/");
-        providerCookie.setMaxAge(600);
-        response.addCookie(providerCookie);
-        response.addHeader("Set-Cookie", OAUTH_PROVIDER_COOKIE + "=google; Path=/; Max-Age=600; HttpOnly; SameSite=Lax");
-
-        logger.info("Redirecting to Google OAuth2 URL: {}", authUrl);
-        response.sendRedirect(authUrl);
+    
+    @GetMapping("/oauth2/google")
+    @Operation(summary = "Redirect to Google OAuth2 authorization")
+    public void googleOAuth2(HttpServletResponse response) throws IOException {
+        response.sendRedirect("/oauth2/authorization/google");
     }
-
-    @GetMapping("/github")
-    @Operation(
-        summary = "Start GitHub OAuth2 authentication",
-        description = "Redirects the user to GitHub's OAuth2 authorization server"
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "302", description = "Redirect to GitHub OAuth2 authorization server"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public void startGitHubAuth(HttpServletResponse response) throws IOException {
-        String state = gitHubOAuth2Service.generateState();
-        String authUrl = gitHubOAuth2Service.buildAuthorizationUrl(state);
-
-        logger.info("Starting GitHub OAuth2 authentication with state: {}", state);
-        
-        // Set state cookie with proper attributes
-        Cookie stateCookie = new Cookie(OAUTH_STATE_COOKIE, state);
-        stateCookie.setHttpOnly(true);
-        stateCookie.setSecure(false); // Set to true in production with HTTPS
-        stateCookie.setPath("/");
-        stateCookie.setMaxAge(600); // 10 minutes
-        response.addCookie(stateCookie);
-        response.addHeader("Set-Cookie", OAUTH_STATE_COOKIE + "=" + state + "; Path=/; Max-Age=600; HttpOnly; SameSite=Lax");
-
-        // Set provider cookie to identify GitHub
-        Cookie providerCookie = new Cookie(OAUTH_PROVIDER_COOKIE, "github");
-        providerCookie.setHttpOnly(true);
-        providerCookie.setSecure(false);
-        providerCookie.setPath("/");
-        providerCookie.setMaxAge(600);
-        response.addCookie(providerCookie);
-        response.addHeader("Set-Cookie", OAUTH_PROVIDER_COOKIE + "=github; Path=/; Max-Age=600; HttpOnly; SameSite=Lax");
-
-        logger.info("Redirecting to GitHub OAuth2 URL: {}", authUrl);
-        response.sendRedirect(authUrl);
+    
+    @GetMapping("/oauth2/github")
+    @Operation(summary = "Redirect to GitHub OAuth2 authorization")
+    public void githubOAuth2(HttpServletResponse response) throws IOException {
+        response.sendRedirect("/oauth2/authorization/github");
     }
-
-    @GetMapping("/callback")
-    @Operation(
-        summary = "Handle OAuth2 callback",
-        description = "Processes the authorization code from OAuth2 providers (Google, GitHub) and creates/authenticates the user"
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "302", description = "Redirect to frontend with authentication token"),
-        @ApiResponse(responseCode = "400", description = "Bad request - missing or invalid parameters"),
-        @ApiResponse(responseCode = "401", description = "Authentication failed"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public void handleOAuth2Callback(
-        @Parameter(description = "Authorization code from OAuth2 provider") 
-        @RequestParam(required = false) String code,
-        
-        @Parameter(description = "State parameter for CSRF protection") 
-        @RequestParam(required = false) String state,
-        
-        @Parameter(description = "Error parameter from OAuth2 provider") 
-        @RequestParam(required = false) String error,
-        
-        HttpServletRequest request,
-        HttpServletResponse response) throws IOException {
-
+    
+    @GetMapping("/oauth2/callback")
+    @Operation(summary = "Handle OAuth2 callback from providers")
+    public ResponseEntity<?> oauth2Callback(@AuthenticationPrincipal OAuth2User oauth2User,
+                                           @RequestParam(required = false) String state,
+                                           HttpServletResponse response) throws IOException {
         try {
-            logger.info("OAuth2 callback received - code: {}, state: {}, error: {}", 
-                       code != null ? "present" : "null", 
-                       state != null ? "present" : "null", 
-                       error);
-
-            if (error != null) {
-                logger.error("OAuth2 error from provider: {}", error);
-                response.sendRedirect(FRONTEND_URL + "?error=" + URLDecoder.decode(error, StandardCharsets.UTF_8));
-                return;
+            if (oauth2User == null) {
+                response.sendRedirect("/oauth2/error?error=authentication_failed");
+                return null;
             }
 
-            if (code == null || state == null) {
-                logger.error("Missing required parameters - code: {}, state: {}", code, state);
-                response.sendRedirect(FRONTEND_URL + "?error=missing_parameters");
-                return;
-            }
-
-            String storedState = getStoredState(request);
-            String provider = getStoredProvider(request);
-            logger.info("Stored state: {}, received state: {}, provider: {}", storedState, state, provider);
+            // Determine provider from OAuth2User attributes
+            String provider = determineProvider(oauth2User);
+            String providerUserId = oauth2User.getAttribute("id").toString();
+            String email = extractEmail(oauth2User, provider);
+            String name = extractName(oauth2User, provider);
             
-            // Debug: Log all cookies
-            Cookie[] cookies = request.getCookies();
-            if (cookies != null) {
-                for (Cookie cookie : cookies) {
-                    logger.info("Cookie: {} = {}", cookie.getName(), cookie.getValue());
-                }
-            } else {
-                logger.info("No cookies found in request");
+            // Create OAuth2SignInCommand
+            AuthProvider authProvider = switch (provider.toLowerCase()) {
+                case "google" -> AuthProvider.google();
+                case "github" -> AuthProvider.github();
+                default -> throw new IllegalArgumentException("Unsupported provider: " + provider);
+            };
+            
+            OAuth2SignInCommand command = new OAuth2SignInCommand(
+                authProvider,
+                providerUserId,
+                new EmailAddress(email),
+                name,
+                oauth2User.getAttributes(),
+                Set.of(Role.getDefaultRole())
+            );
+            
+            // Handle OAuth2 sign in
+            var accountOpt = accountCommandService.handle(command);
+            
+            if (accountOpt.isEmpty()) {
+                response.sendRedirect("/oauth2/error?error=sign_in_failed");
+                return null;
             }
             
-            if (storedState == null) {
-                logger.error("No stored state found in cookies");
-                response.sendRedirect(FRONTEND_URL + "?error=invalid_state");
-                return;
-            }
-
-            if (provider == null) {
-                logger.error("No stored provider found in cookies");
-                response.sendRedirect(FRONTEND_URL + "?error=invalid_provider");
-                return;
-            }
-
-            logger.info("Processing OAuth2 callback for provider: {}", provider);
-            String jwt;
-            if ("google".equals(provider)) {
-                jwt = oAuth2CommandService.processGoogleCallback(code, state, storedState);
-            } else if ("github".equals(provider)) {
-                jwt = oAuth2CommandService.processGitHubCallback(code, state, storedState);
-            } else {
-                logger.error("Unknown OAuth2 provider: {}", provider);
-                response.sendRedirect(FRONTEND_URL + "?error=unknown_provider");
-                return;
-            }
-            logger.info("JWT token generated successfully");
-
-            clearOAuthCookies(response);
-
-            String redirectUrl = FRONTEND_URL + "?token=" + jwt;
+            Account account = accountOpt.get();
+            String accessToken = tokenService.generateToken(account);
+            String refreshToken = tokenService.generateRefreshToken(account);
+            
+            // Redirect to success page with tokens
+            String redirectUrl = String.format("/oauth2/success?access_token=%s&refresh_token=%s", 
+                                              accessToken, refreshToken);
             response.sendRedirect(redirectUrl);
-
-        } catch (SecurityException e) {
-            logger.error("Security exception during OAuth2 callback", e);
-            clearOAuthCookies(response);
-            response.sendRedirect(FRONTEND_URL + "?error=security_violation");
+            
+            return null;
         } catch (Exception e) {
-            logger.error("Exception during OAuth2 callback", e);
-            clearOAuthCookies(response);
-            response.sendRedirect(FRONTEND_URL + "?error=authentication_failed");
+            response.sendRedirect("/oauth2/error?error=" + e.getMessage());
+            return null;
         }
     }
-
-    @GetMapping("/status")
-    @ResponseBody
-    @Operation(
-        summary = "Get OAuth2 authentication status",
-        description = "Returns the current OAuth2 authentication status"
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Authentication status retrieved successfully"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public ResponseEntity<?> getAuthStatus() {
-        return ResponseEntity.ok().body(
-            new AuthStatusResponse("OAuth2 authentication service is running", "ready")
-        );
+    
+    @GetMapping("/oauth2/success")
+    @Operation(summary = "OAuth2 success page")
+    public ResponseEntity<Map<String, Object>> oauth2Success(@RequestParam String access_token,
+                                                            @RequestParam String refresh_token) {
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "OAuth2 authentication successful",
+            "access_token", access_token,
+            "refresh_token", refresh_token,
+            "token_type", "Bearer"
+        ));
     }
-
-
-    private String getStoredState(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            Optional<Cookie> stateCookie = Arrays.stream(cookies)
-                .filter(cookie -> OAUTH_STATE_COOKIE.equals(cookie.getName()))
-                .findFirst();
-            
-            if (stateCookie.isPresent()) {
-                return stateCookie.get().getValue();
+    
+    @GetMapping("/oauth2/status")
+    @Operation(summary = "Get current OAuth2 authentication status")
+    public ResponseEntity<Map<String, Object>> oauth2Status(@AuthenticationPrincipal OAuth2User oauth2User) {
+        if (oauth2User != null) {
+            return ResponseEntity.ok(Map.of(
+                "authenticated", true,
+                "provider", determineProvider(oauth2User),
+                "name", extractName(oauth2User, determineProvider(oauth2User)),
+                "email", extractEmail(oauth2User, determineProvider(oauth2User))
+            ));
+        } else {
+            return ResponseEntity.ok(Map.of("authenticated", false));
+        }
+    }
+    
+    private String determineProvider(OAuth2User oauth2User) {
+        // Check for Google-specific attributes
+        if (oauth2User.getAttributes().containsKey("sub")) {
+            return "google";
+        }
+        // Check for GitHub-specific attributes
+        if (oauth2User.getAttributes().containsKey("login")) {
+            return "github";
+        }
+        // Default fallback
+        return "unknown";
+    }
+    
+    private String extractEmail(OAuth2User oauth2User, String provider) {
+        return switch (provider.toLowerCase()) {
+            case "google" -> oauth2User.getAttribute("email");
+            case "github" -> oauth2User.getAttribute("email");
+            default -> oauth2User.getAttribute("email");
+        };
+    }
+    
+    private String extractName(OAuth2User oauth2User, String provider) {
+        return switch (provider.toLowerCase()) {
+            case "google" -> oauth2User.getAttribute("name");
+            case "github" -> {
+                String name = oauth2User.getAttribute("name");
+                yield name != null ? name : oauth2User.getAttribute("login");
             }
-        }
-        return null;
-    }
-
-    private String getStoredProvider(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            Optional<Cookie> providerCookie = Arrays.stream(cookies)
-                .filter(cookie -> OAUTH_PROVIDER_COOKIE.equals(cookie.getName()))
-                .findFirst();
-            
-            if (providerCookie.isPresent()) {
-                return providerCookie.get().getValue();
-            }
-        }
-        return null;
-    }
-
-    private void clearOAuthCookies(HttpServletResponse response) {
-        // Clear state cookie
-        Cookie stateCookie = new Cookie(OAUTH_STATE_COOKIE, "");
-        stateCookie.setHttpOnly(true);
-        stateCookie.setSecure(false); // Set to true in production with HTTPS
-        stateCookie.setPath("/");
-        stateCookie.setMaxAge(0);
-        response.addCookie(stateCookie);
-        
-        // Clear provider cookie
-        Cookie providerCookie = new Cookie(OAUTH_PROVIDER_COOKIE, "");
-        providerCookie.setHttpOnly(true);
-        providerCookie.setSecure(false);
-        providerCookie.setPath("/");
-        providerCookie.setMaxAge(0);
-        response.addCookie(providerCookie);
-    }
-
-    @GetMapping("/success")
-    @ResponseBody
-    @Operation(
-        summary = "OAuth2 authentication success page",
-        description = "Shows successful OAuth2 authentication with JWT token"
-    )
-    public ResponseEntity<String> authSuccess(@RequestParam(required = false) String token,
-                                            @RequestParam(required = false) String error) {
-        if (token != null) {
-            return ResponseEntity.ok()
-                .header("Content-Type", "text/html; charset=UTF-8")
-                .body("<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body>" +
-                      "<h1>✅ OAuth2 Login Successful!</h1>" +
-                      "<p><strong>JWT Token:</strong></p>" +
-                      "<textarea style='width:100%; height:100px;'>" + token + "</textarea>" +
-                      "<p><em>Copy this token for API requests</em></p></body></html>");
-        }
-        
-        if (error != null) {
-            return ResponseEntity.ok()
-                .header("Content-Type", "text/html; charset=UTF-8")
-                .body("<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body>" +
-                      "<h1>❌ OAuth2 Login Failed!</h1>" +
-                      "<p><strong>Error:</strong> " + error + "</p></body></html>");
-        }
-        
-        return ResponseEntity.ok()
-            .header("Content-Type", "text/html")
-            .body("<h1>OAuth2 Authentication</h1>" +
-                  "<p>Waiting for authentication result...</p>");
-    }
-
-    public static class AuthStatusResponse {
-        private final String message;
-        private final String status;
-
-        public AuthStatusResponse(String message, String status) {
-            this.message = message;
-            this.status = status;
-        }
-
-        public String getMessage() { return message; }
-        public String getStatus() { return status; }
+            default -> oauth2User.getAttribute("name");
+        };
     }
 }

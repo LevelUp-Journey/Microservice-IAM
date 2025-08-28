@@ -1,71 +1,49 @@
 package com.levelupjourney.microserviceiam.IAM.interfaces.acl;
 
-import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignUpCommand;
-import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetUserByIdQuery;
-import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetUserByUsernameQuery;
-import com.levelupjourney.microserviceiam.IAM.domain.services.UserCommandService;
-import com.levelupjourney.microserviceiam.IAM.domain.services.UserQueryService;
-import org.apache.logging.log4j.util.Strings;
-import org.springframework.stereotype.Service;
+import java.util.Set;
+import java.util.UUID;
 
-
-/**
- * IamContextFacade
- * <p>
- *     This class is a facade for the IAM context. It provides a simple interface for other bounded contexts to interact with the
- *     IAM context.
- *     This class is a part of the ACL layer.
- * </p>
- *
- */
-@Service
-public class IamContextFacade {
-    private final UserCommandService userCommandService;
-    private final UserQueryService userQueryService;
-
-    public IamContextFacade(UserCommandService userCommandService, UserQueryService userQueryService) {
-        this.userCommandService = userCommandService;
-        this.userQueryService = userQueryService;
-    }
-
+public interface IamContextFacade {
+    
     /**
-     * Creates a user with the given email, username and password.
-     * User is assigned STUDENT role by default.
-     * @param email The email of the user.
-     * @param username The username of the user.
-     * @param password The password of the user.
-     * @return The id of the created user.
+     * Updates the username in the IAM context
+     * @param accountId The account ID
+     * @param newUsername The new username
+     * @return The account ID if successful, null otherwise
      */
-    public java.util.UUID createUser(String email, String username, String password) {
-        var signUpCommand = new SignUpCommand(email, username, password);
-        var result = userCommandService.handle(signUpCommand);
-        if (result.isEmpty()) return null;
-        return result.get().getId();
-    }
-
-
+    UUID updateAccountUsername(UUID accountId, String newUsername);
+    
     /**
-     * Fetches the id of the user with the given username.
-     * @param username The username of the user.
-     * @return The id of the user.
+     * Changes the password for an account
+     * @param accountId The account ID
+     * @param currentPassword The current password
+     * @param newPassword The new password
+     * @return The account ID if successful, null otherwise
      */
-    public java.util.UUID fetchUserIdByUsername(String username) {
-        var getUserByUsernameQuery = new GetUserByUsernameQuery(username);
-        var result = userQueryService.handle(getUserByUsernameQuery);
-        if (result.isEmpty()) return null;
-        return result.get().getId();
-    }
-
+    UUID changeAccountPassword(UUID accountId, String currentPassword, String newPassword);
+    
     /**
-     * Fetches the username of the user with the given id.
-     * @param userId The id of the user.
-     * @return The username of the user.
+     * Gets account information by account ID
+     * @param accountId The account ID
+     * @return Account information or null if not found
      */
-    public String fetchUsernameByUserId(java.util.UUID userId) {
-        var getUserByIdQuery = new GetUserByIdQuery(userId);
-        var result = userQueryService.handle(getUserByIdQuery);
-        if (result.isEmpty()) return Strings.EMPTY;
-        return result.get().getUsername();
-    }
-
+    AccountInfo getAccountById(UUID accountId);
+    
+    /**
+     * Gets roles for an account
+     * @param accountId The account ID
+     * @return Set of role names
+     */
+    Set<String> getAccountRoles(UUID accountId);
+    
+    /**
+     * Simple account information DTO for ACL communication
+     */
+    record AccountInfo(
+        UUID accountId,
+        String username,
+        String email,
+        Set<String> roles,
+        boolean isActive
+    ) {}
 }
