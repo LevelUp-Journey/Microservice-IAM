@@ -14,6 +14,7 @@ import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.rep
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -27,6 +28,7 @@ public class OAuth2CommandServiceImpl {
     private final UserSessionRepository userSessionRepository;
     private final TokenService tokenService;
     private final RoleService roleService;
+    private final SecureRandom secureRandom;
 
     public OAuth2CommandServiceImpl(GoogleOAuth2Service googleOAuth2Service,
                                GitHubOAuth2Service gitHubOAuth2Service,
@@ -42,238 +44,186 @@ public class OAuth2CommandServiceImpl {
         this.userSessionRepository = userSessionRepository;
         this.tokenService = tokenService;
         this.roleService = roleService;
+        this.secureRandom = new SecureRandom();
     }
 
     @Transactional
     public String processGoogleCallback(String code, String state, String storedState) {
-        if (!state.equals(storedState)) {
-            // Create failed session for CSRF attack attempt
-            var failedSession = new UserSession(null, AuthProvider.GOOGLE, "LOGIN", false, "Invalid state parameter - possible CSRF attack");
-            userSessionRepository.save(failedSession);
-            throw new SecurityException("Invalid state parameter - possible CSRF attack");
-        }
-
-        try {
-            GoogleOAuth2Service.GoogleTokenResponse tokenResponse = 
-                googleOAuth2Service.exchangeCodeForTokens(code, state);
-
-            GoogleOAuth2Service.GoogleUserInfo userInfo = 
-                googleOAuth2Service.getUserInfo(tokenResponse.getAccessToken());
-
-            if (!Boolean.TRUE.equals(userInfo.getVerifiedEmail())) {
-                // Create failed session for unverified email
-                var failedSession = new UserSession(null, AuthProvider.GOOGLE, "LOGIN", false, "Email not verified by Google");
-                userSessionRepository.save(failedSession);
-                throw new SecurityException("Email not verified by Google");
+        return processOAuth2Callback(
+            code, state, storedState, AuthProvider.GOOGLE,
+            () -> {
+                GoogleOAuth2Service.GoogleTokenResponse tokenResponse = 
+                    googleOAuth2Service.exchangeCodeForTokens(code, state);
+                GoogleOAuth2Service.GoogleUserInfo userInfo = 
+                    googleOAuth2Service.getUserInfo(tokenResponse.getAccessToken());
+                
+                if (!Boolean.TRUE.equals(userInfo.getVerifiedEmail())) {
+                    throw new SecurityException("Email not verified by Google");
+                }
+                
+                return new OAuth2CallbackData(userInfo.getId(), userInfo.getEmail(), 
+                    userInfo.getName(), userInfo.getPicture(), tokenResponse.getAccessToken(),
+                    tokenResponse.getRefreshToken(), tokenResponse.getExpiresIn().longValue(), tokenResponse.getScope());
             }
-
-            User user = findOrCreateUser(userInfo);
-            boolean isNewUser = !authIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, userInfo.getId()).isPresent();
-            
-            createOrUpdateAuthIdentity(user, userInfo, tokenResponse);
-
-            // Create successful session (LOGIN for existing user, SIGNUP for new user)
-            String sessionType = isNewUser ? "SIGNUP" : "LOGIN";
-            var session = new UserSession(user, AuthProvider.GOOGLE, sessionType, true);
-            userSessionRepository.save(session);
-            user.addSession(session);
-            
-            // Save the user with the new session
-            userRepository.save(user);
-
-            return tokenService.generateToken(user.getUsername());
-            
-        } catch (Exception e) {
-            // Create failed session for any other errors during OAuth process
-            var failedSession = new UserSession(null, AuthProvider.GOOGLE, "LOGIN", false, "OAuth2 authentication failed: " + e.getMessage());
-            userSessionRepository.save(failedSession);
-            throw e;
-        }
+        );
     }
 
     @Transactional
     public String processGitHubCallback(String code, String state, String storedState) {
-        if (!state.equals(storedState)) {
-            // Create failed session for CSRF attack attempt
-            var failedSession = new UserSession(null, AuthProvider.GITHUB, "LOGIN", false, "Invalid state parameter - possible CSRF attack");
-            userSessionRepository.save(failedSession);
-            throw new SecurityException("Invalid state parameter - possible CSRF attack");
+        return processOAuth2Callback(
+            code, state, storedState, AuthProvider.GITHUB,
+            () -> {
+                GitHubOAuth2Service.GitHubTokenResponse tokenResponse = 
+                    gitHubOAuth2Service.exchangeCodeForTokens(code, state);
+                GitHubOAuth2Service.GitHubUserInfo userInfo = 
+                    gitHubOAuth2Service.getUserInfo(tokenResponse.getAccessToken());
+                
+                if (userInfo.getEmail() == null) {
+                    throw new SecurityException("No email address found in GitHub account");
+                }
+                
+                String displayName = userInfo.getName() != null ? userInfo.getName() : userInfo.getLogin();
+                return new OAuth2CallbackData(userInfo.getId(), userInfo.getEmail(), 
+                    displayName, userInfo.getAvatarUrl(), tokenResponse.getAccessToken(),
+                    tokenResponse.getRefreshToken(), tokenResponse.getExpiresIn().longValue(), tokenResponse.getScope());
+            }
+        );
+    }
+
+    private User findOrCreateUser(String providerId, String email, String name, 
+                                    String avatarUrl, AuthProvider provider) {
+        Optional<AuthIdentity> existingIdentity = 
+            authIdentityRepository.findByProviderAndProviderUserId(provider, providerId);
+
+        if (existingIdentity.isPresent()) {
+            return existingIdentity.get().getUser();
         }
 
+        Optional<User> existingUser = userRepository.findByEmail(email);
+        if (existingUser.isPresent() && Boolean.TRUE.equals(existingUser.get().getEmailVerified())) {
+            return existingUser.get();
+        }
+
+        String randomUsername = generateRandomUsername();
+        
+        User newUser = new User(randomUsername);
+        newUser.setName(name);
+        newUser.setAvatarUrl(avatarUrl);
+        newUser.addEmail(email, true, true, provider);
+        newUser.addRole(roleService.getOrCreateDefaultRole());
+
+        return userRepository.save(newUser);
+    }
+
+    private void createOrUpdateAuthIdentity(User user, String providerId, String accessToken,
+                                           String refreshToken, Long expiresIn, String scope, AuthProvider provider) {
+        Optional<AuthIdentity> existingIdentity = 
+            authIdentityRepository.findByProviderAndProviderUserId(provider, providerId);
+
+        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(expiresIn);
+
+        if (existingIdentity.isPresent()) {
+            AuthIdentity identity = existingIdentity.get();
+            identity.setAccessToken(accessToken);
+            identity.setRefreshToken(refreshToken);
+            identity.setExpiresAt(expiresAt);
+            identity.setScope(scope);
+            identity.updateLastLogin();
+            authIdentityRepository.save(identity);
+        } else {
+            AuthIdentity newIdentity = new AuthIdentity(
+                user, provider, providerId, accessToken, refreshToken, expiresAt, scope
+            );
+            authIdentityRepository.save(newIdentity);
+            user.addAuthIdentity(newIdentity);
+        }
+    }
+
+
+
+    private String processOAuth2Callback(String code, String state, String storedState, 
+                                        AuthProvider provider, OAuth2DataExtractor extractor) {
+        validateState(state, storedState, provider);
+        
         try {
-            GitHubOAuth2Service.GitHubTokenResponse tokenResponse = 
-                gitHubOAuth2Service.exchangeCodeForTokens(code, state);
-
-            GitHubOAuth2Service.GitHubUserInfo userInfo = 
-                gitHubOAuth2Service.getUserInfo(tokenResponse.getAccessToken());
-
-            if (userInfo.getEmail() == null) {
-                // Create failed session for missing email
-                var failedSession = new UserSession(null, AuthProvider.GITHUB, "LOGIN", false, "No email address found in GitHub account");
-                userSessionRepository.save(failedSession);
-                throw new SecurityException("No email address found in GitHub account");
-            }
-
-            User user = findOrCreateUserGitHub(userInfo);
-            boolean isNewUser = !authIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GITHUB, userInfo.getId()).isPresent();
+            OAuth2CallbackData callbackData = extractor.extractData();
             
-            createOrUpdateAuthIdentityGitHub(user, userInfo, tokenResponse);
-
-            // Create successful session (LOGIN for existing user, SIGNUP for new user)
-            String sessionType = isNewUser ? "SIGNUP" : "LOGIN";
-            var session = new UserSession(user, AuthProvider.GITHUB, sessionType, true);
-            userSessionRepository.save(session);
-            user.addSession(session);
+            User user = findOrCreateUser(callbackData.providerId, callbackData.email, 
+                callbackData.name, callbackData.avatarUrl, provider);
             
-            // Save the user with the new session
+            boolean isNewUser = !authIdentityRepository
+                .findByProviderAndProviderUserId(provider, callbackData.providerId).isPresent();
+            
+            createOrUpdateAuthIdentity(user, callbackData.providerId, callbackData.accessToken,
+                callbackData.refreshToken, callbackData.expiresIn, callbackData.scope, provider);
+
+            createSuccessfulSession(user, provider, isNewUser);
             userRepository.save(user);
 
             return tokenService.generateToken(user.getUsername());
             
         } catch (Exception e) {
-            // Create failed session for any other errors during OAuth process
-            var failedSession = new UserSession(null, AuthProvider.GITHUB, "LOGIN", false, "OAuth2 authentication failed: " + e.getMessage());
-            userSessionRepository.save(failedSession);
-            throw e;
+            createFailedSession(provider, "OAuth2 authentication failed: " + e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 
-    private User findOrCreateUser(GoogleOAuth2Service.GoogleUserInfo userInfo) {
-        Optional<AuthIdentity> existingIdentity = 
-            authIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, userInfo.getId());
-
-        if (existingIdentity.isPresent()) {
-            return existingIdentity.get().getUser();
-        }
-
-        Optional<User> existingUser = userRepository.findByEmail(userInfo.getEmail());
-        if (existingUser.isPresent() && Boolean.TRUE.equals(existingUser.get().getEmailVerified())) {
-            return existingUser.get();
-        }
-
-        // Generate normalized username from email
-        String baseUsername = userInfo.getEmail().split("@")[0];
-        String normalizedUsername = generateUniqueUsername(baseUsername);
-        
-        // Create user with normalized username
-        User newUser = new User(normalizedUsername);
-        newUser.setName(userInfo.getName());
-        newUser.setAvatarUrl(userInfo.getPicture());
-        
-        // Add Google email
-        newUser.addEmail(userInfo.getEmail(), true, true, AuthProvider.GOOGLE);
-        
-        // Add default role using RoleService to avoid duplicates
-        newUser.addRole(roleService.getOrCreateDefaultRole());
-
-        return userRepository.save(newUser);
-    }
-
-    private void createOrUpdateAuthIdentity(User user, 
-                                               GoogleOAuth2Service.GoogleUserInfo userInfo,
-                                               GoogleOAuth2Service.GoogleTokenResponse tokenResponse) {
-        Optional<AuthIdentity> existingIdentity = 
-            authIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, userInfo.getId());
-
-        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(tokenResponse.getExpiresIn());
-
-        if (existingIdentity.isPresent()) {
-            AuthIdentity identity = existingIdentity.get();
-            identity.setAccessToken(tokenResponse.getAccessToken());
-            identity.setRefreshToken(tokenResponse.getRefreshToken());
-            identity.setExpiresAt(expiresAt);
-            identity.setScope(tokenResponse.getScope());
-            identity.updateLastLogin();
-            authIdentityRepository.save(identity);
-        } else {
-            AuthIdentity newIdentity = new AuthIdentity(
-                user,
-                AuthProvider.GOOGLE,
-                userInfo.getId(),
-                tokenResponse.getAccessToken(),
-                tokenResponse.getRefreshToken(),
-                expiresAt,
-                tokenResponse.getScope()
-            );
-            authIdentityRepository.save(newIdentity);
-            user.addAuthIdentity(newIdentity);
+    private void validateState(String state, String storedState, AuthProvider provider) {
+        if (!state.equals(storedState)) {
+            createFailedSession(provider, "Invalid state parameter - possible CSRF attack");
+            throw new SecurityException("Invalid state parameter - possible CSRF attack");
         }
     }
 
-    private User findOrCreateUserGitHub(GitHubOAuth2Service.GitHubUserInfo userInfo) {
-        Optional<AuthIdentity> existingIdentity = 
-            authIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GITHUB, userInfo.getId());
-
-        if (existingIdentity.isPresent()) {
-            return existingIdentity.get().getUser();
-        }
-
-        Optional<User> existingUser = userRepository.findByEmail(userInfo.getEmail());
-        if (existingUser.isPresent() && Boolean.TRUE.equals(existingUser.get().getEmailVerified())) {
-            return existingUser.get();
-        }
-
-        // Generate normalized username from email
-        String baseUsername = userInfo.getEmail().split("@")[0];
-        String normalizedUsername = generateUniqueUsername(baseUsername);
-        String displayName = userInfo.getName() != null ? userInfo.getName() : userInfo.getLogin();
-        
-        // Create user with normalized username
-        User newUser = new User(normalizedUsername);
-        newUser.setName(displayName);
-        newUser.setAvatarUrl(userInfo.getAvatarUrl());
-        
-        // Add GitHub email
-        newUser.addEmail(userInfo.getEmail(), true, true, AuthProvider.GITHUB);
-        
-        // Add default role using RoleService to avoid duplicates
-        newUser.addRole(roleService.getOrCreateDefaultRole());
-
-        return userRepository.save(newUser);
+    private void createSuccessfulSession(User user, AuthProvider provider, boolean isNewUser) {
+        String sessionType = isNewUser ? "SIGNUP" : "LOGIN";
+        var session = new UserSession(user, provider, sessionType, true);
+        userSessionRepository.save(session);
+        user.addSession(session);
     }
 
-    private void createOrUpdateAuthIdentityGitHub(User user, 
-                                                  GitHubOAuth2Service.GitHubUserInfo userInfo,
-                                                  GitHubOAuth2Service.GitHubTokenResponse tokenResponse) {
-        Optional<AuthIdentity> existingIdentity = 
-            authIdentityRepository.findByProviderAndProviderUserId(AuthProvider.GITHUB, userInfo.getId());
+    private void createFailedSession(AuthProvider provider, String errorMessage) {
+        var failedSession = new UserSession(null, provider, "LOGIN", false, errorMessage);
+        userSessionRepository.save(failedSession);
+    }
 
-        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(tokenResponse.getExpiresIn());
 
-        if (existingIdentity.isPresent()) {
-            AuthIdentity identity = existingIdentity.get();
-            identity.setAccessToken(tokenResponse.getAccessToken());
-            identity.setRefreshToken(tokenResponse.getRefreshToken());
-            identity.setExpiresAt(expiresAt);
-            identity.setScope(tokenResponse.getScope());
-            identity.updateLastLogin();
-            authIdentityRepository.save(identity);
-        } else {
-            AuthIdentity newIdentity = new AuthIdentity(
-                user,
-                AuthProvider.GITHUB,
-                userInfo.getId(),
-                tokenResponse.getAccessToken(),
-                tokenResponse.getRefreshToken(),
-                expiresAt,
-                tokenResponse.getScope()
-            );
-            authIdentityRepository.save(newIdentity);
-            user.addAuthIdentity(newIdentity);
+    @FunctionalInterface
+    private interface OAuth2DataExtractor {
+        OAuth2CallbackData extractData() throws Exception;
+    }
+
+    private static class OAuth2CallbackData {
+        final String providerId;
+        final String email;
+        final String name;
+        final String avatarUrl;
+        final String accessToken;
+        final String refreshToken;
+        final Long expiresIn;
+        final String scope;
+
+        OAuth2CallbackData(String providerId, String email, String name, String avatarUrl,
+                          String accessToken, String refreshToken, Long expiresIn, String scope) {
+            this.providerId = providerId;
+            this.email = email;
+            this.name = name;
+            this.avatarUrl = avatarUrl;
+            this.accessToken = accessToken;
+            this.refreshToken = refreshToken;
+            this.expiresIn = expiresIn;
+            this.scope = scope;
         }
     }
 
-    /**
-     * Generate a unique username based on a base username
-     */
-    private String generateUniqueUsername(String baseUsername) {
-        String finalUsername = baseUsername;
-        int counter = 1;
-        while (userRepository.existsByUsername(finalUsername)) {
-            finalUsername = baseUsername + counter;
-            counter++;
-        }
-        return finalUsername;
+    private String generateRandomUsername() {
+        String username;
+        do {
+            // Generate random 9-digit number
+            int randomNumber = secureRandom.nextInt(900000000) + 100000000; // ensures 9 digits
+            username = "user" + randomNumber;
+        } while (userRepository.existsByUsername(username));
+        return username;
     }
 
 }
