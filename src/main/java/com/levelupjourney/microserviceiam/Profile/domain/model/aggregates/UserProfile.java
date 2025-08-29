@@ -46,7 +46,7 @@ public class UserProfile extends AuditableAbstractAggregateRoot<UserProfile> {
     private Set<String> roles = new HashSet<>();
 
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JoinColumn(name = "account_id")
+    @JoinColumn(name = "profile_id")
     private List<ProfileAudit> profileAudits = new ArrayList<>();
 
     public UserProfile() {}
@@ -91,7 +91,7 @@ public class UserProfile extends AuditableAbstractAggregateRoot<UserProfile> {
     }
 
     private void auditChange(AccountId actorId, String field, String oldValue, String newValue) {
-        ProfileAudit audit = new ProfileAudit(actorId, this.accountId, field, oldValue, newValue);
+        ProfileAudit audit = new ProfileAudit(actorId, getId(), field, oldValue, newValue);
         this.profileAudits.add(audit);
     }
 

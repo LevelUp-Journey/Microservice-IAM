@@ -22,11 +22,8 @@ public class ProfileAudit extends AuditableModel {
     })
     private AccountId actorId;
 
-    @Embedded
-    @AttributeOverrides({
-        @AttributeOverride(name = "value", column = @Column(name = "account_id", nullable = false))
-    })
-    private AccountId accountId;
+    @Column(name = "account_id", nullable = false)
+    private UUID profileId;
 
     @Column(name = "field", nullable = false)
     private String field;
@@ -42,10 +39,10 @@ public class ProfileAudit extends AuditableModel {
 
     public ProfileAudit() {}
 
-    public ProfileAudit(AccountId actorId, AccountId accountId, String field, String oldValue, String newValue) {
+    public ProfileAudit(AccountId actorId, UUID profileId, String field, String oldValue, String newValue) {
         this.auditId = UUID.randomUUID();
         this.actorId = actorId;
-        this.accountId = accountId;
+        this.profileId = profileId;
         this.field = field;
         this.oldValue = oldValue;
         this.newValue = newValue;
