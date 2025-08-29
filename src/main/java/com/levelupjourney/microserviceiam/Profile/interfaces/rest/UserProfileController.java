@@ -75,42 +75,6 @@ public class UserProfileController {
         }
     }
     
-    @GetMapping
-    @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "List users", description = "Returns a paginated list of user profiles")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Users retrieved successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public ResponseEntity<PagedUserProfilesResource> getUsers(
-            @Parameter(description = "Page number (0-based)", example = "0")
-            @RequestParam(defaultValue = "0") Integer page,
-            
-            @Parameter(description = "Page size", example = "10")
-            @RequestParam(defaultValue = "10") Integer pageSize,
-            
-            @Parameter(description = "Search query for username or name", example = "john")
-            @RequestParam(required = false) String q) {
-        
-        try {
-            var query = new GetAllUserProfilesQuery(
-                    java.util.Optional.ofNullable(page),
-                    java.util.Optional.ofNullable(pageSize),
-                    java.util.Optional.ofNullable(q)
-            );
-            
-            var userProfiles = userProfileQueryService.handle(query);
-            var resource = PagedUserProfilesResourceFromPageAssembler.toResourceFromPage(userProfiles);
-            
-            return ResponseEntity.ok(resource);
-            
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-    
     @GetMapping("/{userId}")
     @PreAuthorize("hasRole('USER')")
     @Operation(summary = "Get user by ID", description = "Returns a specific user profile by ID")
@@ -142,68 +106,49 @@ public class UserProfileController {
     
     @GetMapping("/search")
     @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Search users by username", description = "Returns users matching the username search term")
+    @Operation(summary = "Search users by username", description = "Returns a user profile by exact username match - Username is unique across the application")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Search completed successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid search parameters"),
+        @ApiResponse(responseCode = "200", description = "User found or not found"),
+        @ApiResponse(responseCode = "400", description = "Invalid username parameter"),
         @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<PagedUserProfilesResource> searchUsersByUsername(
-            @Parameter(description = "Username search term", example = "john")
-            @RequestParam String q,
-            
-            @Parameter(description = "Page number (0-based)", example = "0")
-            @RequestParam(defaultValue = "0") Integer page,
-            
-            @Parameter(description = "Page size", example = "10")
-            @RequestParam(defaultValue = "10") Integer pageSize) {
-        
+    public ResponseEntity<?> searchUserByUsername(
+            @Parameter(description = "Exact username to search for", example = "john_doe", required = true)
+            @RequestParam String q) {
+
         try {
-            var query = new GetUserProfilesByUsernameQuery(q, page, pageSize);
-            var userProfiles = userProfileQueryService.handle(query);
-            var resource = PagedUserProfilesResourceFromPageAssembler.toResourceFromPage(userProfiles);
-            
-            return ResponseEntity.ok(resource);
-            
+            if (q == null || q.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(new MessageResource("Username parameter 'q' is required and cannot be empty"));
+            }
+
+            var query = new GetUserProfileByUsernameQuery(new PublicUsername(q.trim()));
+            var userProfile = userProfileQueryService.handle(query);
+
+            if (userProfile.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                    "found", false,
+                    "message", "No user found with username: " + q,
+                    "user", null
+                ));
+            }
+
+            var resource = UserProfileResourceFromEntityAssembler
+                    .toResourceFromEntity(userProfile.get());
+
+            return ResponseEntity.ok(Map.of(
+                "found", true,
+                "message", "User found",
+                "user", resource
+            ));
+
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest()
+                .body(new MessageResource("Invalid username format: " + e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-    
-    @GetMapping("/by-role/{role}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Get users by role", description = "Returns users with the specified role - Admin only")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Users retrieved successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid role or pagination parameters"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized"),
-        @ApiResponse(responseCode = "403", description = "Forbidden - Admin role required"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public ResponseEntity<PagedUserProfilesResource> getUsersByRole(
-            @Parameter(description = "Role name", example = "STUDENT")
-            @PathVariable String role,
-            
-            @Parameter(description = "Page number (0-based)", example = "0")
-            @RequestParam(defaultValue = "0") Integer page,
-            
-            @Parameter(description = "Page size", example = "10")
-            @RequestParam(defaultValue = "10") Integer pageSize) {
-        
-        try {
-            var query = new GetUserProfilesByRoleQuery(role, page, pageSize);
-            var userProfiles = userProfileQueryService.handle(query);
-            var resource = PagedUserProfilesResourceFromPageAssembler.toResourceFromPage(userProfiles);
-            
-            return ResponseEntity.ok(resource);
-            
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.internalServerError()
+                .body(new MessageResource("Failed to search user: " + e.getMessage()));
         }
     }
     

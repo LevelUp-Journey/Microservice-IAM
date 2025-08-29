@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface UserProfileQueryService {
     Optional<UserProfile> handle(GetUserProfileByIdQuery query);
     Optional<UserProfile> handle(GetUserProfileByAccountIdQuery query);
+    Optional<UserProfile> handle(GetUserProfileByUsernameQuery query);
     Page<UserProfile> handle(GetAllUserProfilesQuery query);
     Page<UserProfile> handle(GetUserProfilesByUsernameQuery query);
     Page<UserProfile> handle(GetUserProfilesByRoleQuery query);

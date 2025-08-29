@@ -35,6 +35,12 @@ public class UserProfileQueryServiceImpl implements UserProfileQueryService {
     
     @Override
     @Transactional(readOnly = true)
+    public Optional<UserProfile> handle(GetUserProfileByUsernameQuery query) {
+        return userProfileRepository.findByUsername(query.username());
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
     public Page<UserProfile> handle(GetAllUserProfilesQuery query) {
         int page = query.page().orElse(0);
         int pageSize = query.pageSize().orElse(10);

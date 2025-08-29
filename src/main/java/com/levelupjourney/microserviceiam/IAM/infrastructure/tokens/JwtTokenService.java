@@ -42,7 +42,7 @@ public class JwtTokenService implements TokenService {
                         .collect(Collectors.toList()))
                 .issuedAt(new Date())
                 .expiration(expiryDate)
-                .signWith(key)
+                .signWith(key, Jwts.SIG.HS512)
                 .compact();
     }
     
@@ -56,7 +56,7 @@ public class JwtTokenService implements TokenService {
                 .claim("type", "refresh")
                 .issuedAt(new Date())
                 .expiration(expiryDate)
-                .signWith(key)
+                .signWith(key, Jwts.SIG.HS512)
                 .compact();
     }
     

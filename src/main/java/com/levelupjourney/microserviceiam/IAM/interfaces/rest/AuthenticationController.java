@@ -13,6 +13,7 @@ import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignInComman
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.UpdateUsernameCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.*;
 import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
+import com.levelupjourney.microserviceiam.IAM.application.internal.services.AuthenticationService;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.*;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.AuthenticatedUserResourceFromEntityAssembler;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.SignUpCommandFromResourceAssembler;
@@ -40,10 +41,14 @@ public class AuthenticationController {
     
     private final AccountCommandService accountCommandService;
     private final TokenService tokenService;
+    private final AuthenticationService authenticationService;
     
-    public AuthenticationController(AccountCommandService accountCommandService, TokenService tokenService) {
+    public AuthenticationController(AccountCommandService accountCommandService, 
+                                   TokenService tokenService,
+                                   AuthenticationService authenticationService) {
         this.accountCommandService = accountCommandService;
         this.tokenService = tokenService;
+        this.authenticationService = authenticationService;
     }
     
     @PostMapping("/sign-up")
@@ -131,7 +136,13 @@ public class AuthenticationController {
                                           @Valid @RequestBody ChangePasswordResource resource,
                                           Authentication authentication) {
         try {
-            // TODO: Add authorization check to ensure user can change this password
+            // Verify user can only change their own password
+            UUID authenticatedAccountId = authenticationService.getAccountIdFromAuthentication(authentication);
+            if (!authenticatedAccountId.equals(accountId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new MessageResource("You can only change your own password"));
+            }
+            
             var command = new ChangePasswordCommand(
                 new AccountId(accountId),
                 resource.currentPassword(),
@@ -174,7 +185,13 @@ public class AuthenticationController {
                                           @Valid @RequestBody UpdateUsernameResource resource,
                                           Authentication authentication) {
         try {
-            // TODO: Add authorization check to ensure user can change this username
+            // Verify user can only change their own username
+            UUID authenticatedAccountId = authenticationService.getAccountIdFromAuthentication(authentication);
+            if (!authenticatedAccountId.equals(accountId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new MessageResource("You can only change your own username"));
+            }
+            
             var command = new UpdateUsernameCommand(
                 new AccountId(accountId),
                 new Username(resource.username())
