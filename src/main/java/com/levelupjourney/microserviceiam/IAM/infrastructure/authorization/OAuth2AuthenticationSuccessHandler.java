@@ -1,6 +1,5 @@
 package com.levelupjourney.microserviceiam.IAM.infrastructure.authorization;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.tokens.TokenService;
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.OAuth2SignInCommand;
@@ -15,8 +14,6 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
 @Component
@@ -24,14 +21,11 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     private final AccountCommandService accountCommandService;
     private final TokenService tokenService;
-    private final ObjectMapper objectMapper;
 
     public OAuth2AuthenticationSuccessHandler(AccountCommandService accountCommandService, 
-                                            TokenService tokenService,
-                                            ObjectMapper objectMapper) {
+                                            TokenService tokenService) {
         this.accountCommandService = accountCommandService;
         this.tokenService = tokenService;
-        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -84,19 +78,6 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         } catch (Exception e) {
             response.sendRedirect("/oauth2/error?message=" + e.getMessage());
         }
-    }
-    
-    private void sendErrorResponse(HttpServletResponse response, String error, String message) throws IOException {
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("success", false);
-        errorResponse.put("error", error);
-        errorResponse.put("message", message);
-        
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
-        response.getWriter().flush();
     }
     
     private String determineProvider(OAuth2User oauth2User) {
