@@ -1,11 +1,11 @@
 package com.levelupjourney.microserviceiam.IAM.domain.model.commands;
 
+import java.util.Map;
+import java.util.Set;
+
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.EmailAddress;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Role;
-
-import java.util.Map;
-import java.util.Set;
 
 public record OAuth2SignInCommand(
     AuthProvider provider,

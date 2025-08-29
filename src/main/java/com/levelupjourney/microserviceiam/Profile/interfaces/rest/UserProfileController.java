@@ -13,8 +13,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.Map;
 import java.util.UUID;
@@ -34,6 +36,7 @@ public class UserProfileController {
     }
     
     @PutMapping("/me")
+    @PreAuthorize("hasRole('USER')")
     @Operation(summary = "Update current user profile", description = "Updates the profile of the authenticated user")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Profile updated successfully"),
@@ -45,8 +48,6 @@ public class UserProfileController {
     public ResponseEntity<?> updateMyProfile(@Valid @RequestBody UpdateUserProfileResource resource,
                                            Authentication authentication) {
         try {
-            // TODO: Extract accountId from JWT token instead of authentication principal
-            // For now, we'll use a placeholder
             UUID accountId = extractAccountIdFromAuthentication(authentication);
             
             var command = UpdateUserProfileCommandFromResourceAssembler
@@ -75,10 +76,12 @@ public class UserProfileController {
     }
     
     @GetMapping
+    @PreAuthorize("hasRole('USER')")
     @Operation(summary = "List users", description = "Returns a paginated list of user profiles")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Users retrieved successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid pagination parameters"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public ResponseEntity<PagedUserProfilesResource> getUsers(
@@ -109,9 +112,11 @@ public class UserProfileController {
     }
     
     @GetMapping("/{userId}")
+    @PreAuthorize("hasRole('USER')")
     @Operation(summary = "Get user by ID", description = "Returns a specific user profile by ID")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "User found"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "404", description = "User not found"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
@@ -136,10 +141,12 @@ public class UserProfileController {
     }
     
     @GetMapping("/search")
+    @PreAuthorize("hasRole('USER')")
     @Operation(summary = "Search users by username", description = "Returns users matching the username search term")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Search completed successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid search parameters"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public ResponseEntity<PagedUserProfilesResource> searchUsersByUsername(
@@ -167,10 +174,13 @@ public class UserProfileController {
     }
     
     @GetMapping("/by-role/{role}")
-    @Operation(summary = "Get users by role", description = "Returns users with the specified role")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get users by role", description = "Returns users with the specified role - Admin only")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Users retrieved successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid role or pagination parameters"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Forbidden - Admin role required"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public ResponseEntity<PagedUserProfilesResource> getUsersByRole(
@@ -198,13 +208,10 @@ public class UserProfileController {
     }
     
     private UUID extractAccountIdFromAuthentication(Authentication authentication) {
-        // TODO: Implement proper JWT token parsing to extract account ID
-        // For now, return a placeholder UUID
-        // In a real implementation, you would:
-        // 1. Extract the JWT token from the Authentication object
-        // 2. Parse the token to get the account ID claim
-        // 3. Return the account ID as UUID
-        
-        throw new UnsupportedOperationException("JWT token parsing not yet implemented");
+        if (authentication.getPrincipal() instanceof Jwt jwt) {
+            String accountId = jwt.getSubject();
+            return UUID.fromString(accountId);
+        }
+        throw new IllegalArgumentException("Invalid authentication principal - JWT required");
     }
 }

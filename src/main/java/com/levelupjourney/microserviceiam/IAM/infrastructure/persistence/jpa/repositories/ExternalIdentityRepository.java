@@ -1,10 +1,11 @@
 package com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.ExternalIdentity;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AuthProvider;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;

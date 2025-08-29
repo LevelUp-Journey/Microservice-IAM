@@ -1,11 +1,12 @@
 package com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories;
 
-import com.levelupjourney.microserviceiam.IAM.domain.model.entities.IamAudit;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+
+import com.levelupjourney.microserviceiam.IAM.domain.model.entities.IamAudit;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
 
 import java.time.LocalDateTime;
 import java.util.List;

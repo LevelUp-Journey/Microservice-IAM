@@ -1,10 +1,11 @@
 package com.levelupjourney.microserviceiam.IAM.domain.model.events;
 
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Username;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Username;
 
 @Getter
 public class AccountRegisteredEvent {

@@ -1,12 +1,13 @@
 package com.levelupjourney.microserviceiam.IAM.infrastructure.tokens;
 
-import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.tokens.TokenService;
-import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Role;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.tokens.TokenService;
+import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Role;
 
 import javax.crypto.SecretKey;
 import java.util.Date;

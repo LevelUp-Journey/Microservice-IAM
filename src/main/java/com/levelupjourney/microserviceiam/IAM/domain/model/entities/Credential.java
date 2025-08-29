@@ -1,6 +1,6 @@
 package com.levelupjourney.microserviceiam.IAM.domain.model.entities;
 
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
+import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.PasswordHash;
 import com.levelupjourney.microserviceiam.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.*;
@@ -13,11 +13,9 @@ import java.time.LocalDateTime;
 @Table(name = "credentials")
 public class Credential extends AuditableModel {
 
-    @Embedded
-    @AttributeOverrides({
-        @AttributeOverride(name = "value", column = @Column(name = "account_id", nullable = false))
-    })
-    private AccountId accountId;
+    @OneToOne
+    @JoinColumn(name = "account_id", nullable = false)
+    private Account account;
 
     @Embedded
     @AttributeOverrides({
@@ -30,8 +28,8 @@ public class Credential extends AuditableModel {
 
     public Credential() {}
 
-    public Credential(AccountId accountId, PasswordHash passwordHash) {
-        this.accountId = accountId;
+    public Credential(Account account, PasswordHash passwordHash) {
+        this.account = account;
         this.passwordHash = passwordHash;
         this.passwordUpdatedAt = LocalDateTime.now();
     }

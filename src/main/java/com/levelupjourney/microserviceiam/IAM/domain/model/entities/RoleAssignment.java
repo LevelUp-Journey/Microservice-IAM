@@ -1,6 +1,6 @@
 package com.levelupjourney.microserviceiam.IAM.domain.model.entities;
 
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
+import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Role;
 import com.levelupjourney.microserviceiam.shared.domain.model.entities.AuditableModel;
 import jakarta.persistence.*;
@@ -15,11 +15,9 @@ import java.time.LocalDateTime;
 })
 public class RoleAssignment extends AuditableModel {
 
-    @Embedded
-    @AttributeOverrides({
-        @AttributeOverride(name = "value", column = @Column(name = "account_id", nullable = false))
-    })
-    private AccountId accountId;
+    @ManyToOne
+    @JoinColumn(name = "account_id", nullable = false)
+    private Account account;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
@@ -33,15 +31,15 @@ public class RoleAssignment extends AuditableModel {
 
     public RoleAssignment() {}
 
-    public RoleAssignment(AccountId accountId, Role role) {
-        this.accountId = accountId;
+    public RoleAssignment(Account account, Role role) {
+        this.account = account;
         this.role = role;
         this.grantedAt = LocalDateTime.now();
         this.grantedBy = "SYSTEM";
     }
 
-    public RoleAssignment(AccountId accountId, Role role, String grantedBy) {
-        this.accountId = accountId;
+    public RoleAssignment(Account account, Role role, String grantedBy) {
+        this.account = account;
         this.role = role;
         this.grantedAt = LocalDateTime.now();
         this.grantedBy = grantedBy;

@@ -1,8 +1,9 @@
 package com.levelupjourney.microserviceiam.IAM.infrastructure.hashing;
 
-import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.hashing.HashingService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.hashing.HashingService;
 
 @Service
 public class BCryptHashingService implements HashingService {

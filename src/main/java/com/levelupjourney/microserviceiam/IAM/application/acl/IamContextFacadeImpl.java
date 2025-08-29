@@ -1,5 +1,7 @@
 package com.levelupjourney.microserviceiam.IAM.application.acl;
 
+import org.springframework.stereotype.Service;
+
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.ChangePasswordCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.UpdateUsernameCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.queries.GetAccountByIdQuery;
@@ -9,7 +11,6 @@ import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Username
 import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
 import com.levelupjourney.microserviceiam.IAM.domain.services.AccountQueryService;
 import com.levelupjourney.microserviceiam.IAM.interfaces.acl.IamContextFacade;
-import org.springframework.stereotype.Service;
 
 import java.util.Set;
 import java.util.UUID;

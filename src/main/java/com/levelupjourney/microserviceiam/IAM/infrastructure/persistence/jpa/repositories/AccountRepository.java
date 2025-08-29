@@ -1,12 +1,13 @@
 package com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories;
 
-import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.EmailAddress;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Username;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.EmailAddress;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Username;
 
 import java.util.Optional;
 import java.util.UUID;

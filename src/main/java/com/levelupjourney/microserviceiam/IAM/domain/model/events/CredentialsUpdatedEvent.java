@@ -1,9 +1,10 @@
 package com.levelupjourney.microserviceiam.IAM.domain.model.events;
 
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
 
 @Getter
 public class CredentialsUpdatedEvent {

@@ -1,10 +1,10 @@
 package com.levelupjourney.microserviceiam.IAM.domain.services;
 
+import java.util.Optional;
+
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.*;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
-
-import java.util.Optional;
 
 public interface AccountCommandService {
     Optional<Account> handle(SignUpCommand command);

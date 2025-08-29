@@ -8,10 +8,18 @@ import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.*;
 import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.AccountRepository;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.ExternalIdentityRepository;
+import com.levelupjourney.microserviceiam.Profile.domain.model.commands.CreateUserProfileFromAccountCommand;
+import com.levelupjourney.microserviceiam.Profile.domain.model.valueobjects.PublicUsername;
+import com.levelupjourney.microserviceiam.Profile.domain.model.valueobjects.DisplayName;
+import com.levelupjourney.microserviceiam.Profile.domain.model.valueobjects.AvatarUrl;
+import com.levelupjourney.microserviceiam.Profile.domain.services.UserProfileCommandService;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class AccountCommandServiceImpl implements AccountCommandService {
@@ -20,15 +28,18 @@ public class AccountCommandServiceImpl implements AccountCommandService {
     private final ExternalIdentityRepository externalIdentityRepository;
     private final HashingService hashingService;
     private final IamAuditService auditService;
+    private final UserProfileCommandService userProfileCommandService;
     
     public AccountCommandServiceImpl(AccountRepository accountRepository,
                                    ExternalIdentityRepository externalIdentityRepository,
                                    HashingService hashingService,
-                                   IamAuditService auditService) {
+                                   IamAuditService auditService,
+                                   UserProfileCommandService userProfileCommandService) {
         this.accountRepository = accountRepository;
         this.externalIdentityRepository = externalIdentityRepository;
         this.hashingService = hashingService;
         this.auditService = auditService;
+        this.userProfileCommandService = userProfileCommandService;
     }
     
     @Override
@@ -53,6 +64,9 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         
         // Save again with the initialized entities
         savedAccount = accountRepository.save(savedAccount);
+        
+        // Create UserProfile for local account
+        createUserProfileForAccount(savedAccount, null, null);
         
         auditService.auditSignUp(savedAccount.getAccountId(), null);
         
@@ -94,7 +108,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         );
         
         if (existingIdentity.isPresent()) {
-            Optional<Account> account = accountRepository.findById(existingIdentity.get().getAccountId().value());
+            Optional<Account> account = accountRepository.findById(existingIdentity.get().getAccount().getAccountId().value());
             if (account.isPresent()) {
                 auditService.auditSignIn(account.get().getAccountId(), null);
                 return account;
@@ -104,7 +118,9 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         if (accountRepository.existsByEmail(command.email())) {
             Optional<Account> existingAccount = accountRepository.findByEmail(command.email());
             if (existingAccount.isPresent()) {
-                existingAccount.get().linkExternalIdentity(command.provider(), command.providerUserId(), command.attributes());
+                String name = extractNameFromAttributes(command.attributes());
+                String avatarUrl = extractAvatarFromAttributes(command.attributes());
+                existingAccount.get().linkExternalIdentity(command.provider(), command.providerUserId(), name, avatarUrl);
                 Account savedAccount = accountRepository.save(existingAccount.get());
                 auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), null);
                 return Optional.of(savedAccount);
@@ -117,17 +133,22 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         }
         
         Account newAccount = new Account(command.email(), generatedUsername, command.provider(), 
-                                       command.providerUserId(), command.name(), command.attributes(), command.roles());
+                                       command.providerUserId(), command.name(), command.roles());
         
         // Save first to generate the ID
         Account savedAccount = accountRepository.save(newAccount);
         
         // Now initialize OAuth2-specific entities with the generated account ID
+        String name = extractNameFromAttributes(command.attributes());
+        String avatarUrl = extractAvatarFromAttributes(command.attributes());
         savedAccount.initializeOAuth2Account(command.provider(), command.providerUserId(), 
-                                           command.attributes(), command.roles(), generatedUsername);
+                                           name, avatarUrl, command.roles(), generatedUsername);
         
         // Save again with the initialized entities
         savedAccount = accountRepository.save(savedAccount);
+        
+        // Create UserProfile for OAuth2 account
+        createUserProfileForAccount(savedAccount, name, avatarUrl);
         
         auditService.auditSignUp(savedAccount.getAccountId(), null);
         auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), null);
@@ -135,9 +156,48 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         return Optional.of(savedAccount);
     }
     
+    private String extractNameFromAttributes(Map<String, Object> attributes) {
+        if (attributes != null) {
+            Object name = attributes.get("name");
+            if (name != null) return name.toString();
+            
+            Object login = attributes.get("login");
+            if (login != null) return login.toString();
+        }
+        return null;
+    }
+    
+    private String extractAvatarFromAttributes(Map<String, Object> attributes) {
+        if (attributes != null) {
+            Object avatarUrl = attributes.get("avatar_url");
+            if (avatarUrl != null) return avatarUrl.toString();
+            
+            Object picture = attributes.get("picture");
+            if (picture != null) return picture.toString();
+        }
+        return null;
+    }
+    
+    private void createUserProfileForAccount(Account account, String name, String avatarUrl) {
+        // Extract role names from account
+        Set<String> roleNames = account.getRoles().stream()
+                .map(Role::getName)
+                .collect(java.util.stream.Collectors.toSet());
+        
+        var command = new CreateUserProfileFromAccountCommand(
+                new com.levelupjourney.microserviceiam.Profile.domain.model.valueobjects.AccountId(account.getAccountId().value()),
+                new PublicUsername(account.getUsername().value()),
+                name != null ? new DisplayName(name) : null,
+                avatarUrl != null ? new AvatarUrl(avatarUrl) : null,
+                roleNames
+        );
+        
+        userProfileCommandService.handle(command);
+    }
+    
     @Override
     @Transactional
-    public Optional<AccountId> handle(ChangePasswordCommand command) {
+    public Optional<com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId> handle(ChangePasswordCommand command) {
         Optional<Account> accountOpt = accountRepository.findById(command.accountId().value());
         
         if (accountOpt.isEmpty()) {
@@ -165,7 +225,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
     
     @Override
     @Transactional
-    public Optional<AccountId> handle(UpdateUsernameCommand command) {
+    public Optional<com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId> handle(UpdateUsernameCommand command) {
         Optional<Account> accountOpt = accountRepository.findById(command.accountId().value());
         
         if (accountOpt.isEmpty()) {

@@ -1,5 +1,10 @@
 package com.levelupjourney.microserviceiam.IAM.interfaces.rest;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+
+import jakarta.servlet.http.HttpServletResponse;
+
 import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.tokens.TokenService;
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.ChangePasswordCommand;
@@ -7,10 +12,7 @@ import com.levelupjourney.microserviceiam.IAM.domain.model.commands.OAuth2SignIn
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignInCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.UpdateUsernameCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.*;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
-import jakarta.servlet.http.HttpServletResponse;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.*;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.AuthenticatedUserResourceFromEntityAssembler;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.SignUpCommandFromResourceAssembler;
@@ -22,6 +24,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -115,10 +118,13 @@ public class AuthenticationController {
     }
     
     @PutMapping("/accounts/{accountId}/password")
-    @Operation(summary = "Change user password", description = "Changes the password for the specified account")
+    @PreAuthorize("hasRole('USER') and @authenticationService.canAccessAccount(authentication, #accountId)")
+    @Operation(summary = "Change user password", description = "Changes the password for the specified account - User can only change own password")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Password changed successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid current password or validation error"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Forbidden - Can only change own password"),
         @ApiResponse(responseCode = "404", description = "Account not found")
     })
     public ResponseEntity<?> changePassword(@PathVariable UUID accountId,
@@ -155,10 +161,13 @@ public class AuthenticationController {
     }
     
     @PutMapping("/accounts/{accountId}/username")
-    @Operation(summary = "Update username", description = "Updates the username for the specified account")
+    @PreAuthorize("hasRole('USER') and @authenticationService.canAccessAccount(authentication, #accountId)")
+    @Operation(summary = "Update username", description = "Updates the username for the specified account - User can only change own username")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Username updated successfully"),
         @ApiResponse(responseCode = "400", description = "Username already exists or validation error"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Forbidden - Can only change own username"),
         @ApiResponse(responseCode = "404", description = "Account not found")
     })
     public ResponseEntity<?> updateUsername(@PathVariable UUID accountId,

@@ -1,10 +1,10 @@
 package com.levelupjourney.microserviceiam.IAM.domain.model.commands;
 
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.EmailAddress;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Username;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Role;
-
 import java.util.Set;
+
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.EmailAddress;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Role;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Username;
 
 public record SignUpCommand(
     EmailAddress email,

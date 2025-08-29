@@ -12,7 +12,6 @@ import lombok.Getter;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 @Getter
@@ -36,16 +35,13 @@ public class Account extends AuditableAbstractAggregateRoot<Account> {
     @Column(name = "status", nullable = false)
     private AccountStatus status;
 
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JoinColumn(name = "account_id")
+    @OneToOne(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Credential credential;
 
-    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JoinColumn(name = "account_id")
+    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<ExternalIdentity> externalIdentities = new HashSet<>();
 
-    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @JoinColumn(name = "account_id")
+    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Set<RoleAssignment> roleAssignments = new HashSet<>();
 
     public Account() {}
@@ -59,7 +55,7 @@ public class Account extends AuditableAbstractAggregateRoot<Account> {
         // when the account ID is available
     }
 
-    public Account(EmailAddress email, Username username, AuthProvider provider, String providerUserId, String name, Map<String, Object> attributes, Set<Role> roles) {
+    public Account(EmailAddress email, Username username, AuthProvider provider, String providerUserId, String name, Set<Role> roles) {
         this.email = email;
         this.username = username;
         this.status = AccountStatus.ACTIVE;
@@ -94,7 +90,7 @@ public class Account extends AuditableAbstractAggregateRoot<Account> {
     }
 
     public void addRole(Role role) {
-        this.roleAssignments.add(new RoleAssignment(getAccountId(), role));
+        this.roleAssignments.add(new RoleAssignment(this, role));
     }
 
     public void removeRole(Role role) {
@@ -125,30 +121,30 @@ public class Account extends AuditableAbstractAggregateRoot<Account> {
             .toList();
     }
 
-    public void linkExternalIdentity(AuthProvider provider, String providerUserId, Map<String, Object> attributes) {
-        this.externalIdentities.add(new ExternalIdentity(getAccountId(), provider, providerUserId, attributes));
+    public void linkExternalIdentity(AuthProvider provider, String providerUserId, String name, String avatarUrl) {
+        this.externalIdentities.add(new ExternalIdentity(this, provider, providerUserId, name, avatarUrl));
     }
     
     public void initializeLocalAccount(PasswordHash passwordHash, Set<Role> roles, Username username) {
         // Add credential
-        this.credential = new Credential(getAccountId(), passwordHash);
+        this.credential = new Credential(this, passwordHash);
         
         // Add role assignments
         roles.forEach(role -> 
-            this.roleAssignments.add(new RoleAssignment(getAccountId(), role))
+            this.roleAssignments.add(new RoleAssignment(this, role))
         );
 
         // Add domain event
         addDomainEvent(new AccountRegisteredEvent(getAccountId(), "local", username));
     }
     
-    public void initializeOAuth2Account(AuthProvider provider, String providerUserId, Map<String, Object> attributes, Set<Role> roles, Username username) {
-        // Add external identity
-        this.externalIdentities.add(new ExternalIdentity(getAccountId(), provider, providerUserId, attributes));
+    public void initializeOAuth2Account(AuthProvider provider, String providerUserId, String name, String avatarUrl, Set<Role> roles, Username username) {
+        // Add external identity with OAuth2 data
+        this.externalIdentities.add(new ExternalIdentity(this, provider, providerUserId, name, avatarUrl));
         
         // Add role assignments
         roles.forEach(role -> 
-            this.roleAssignments.add(new RoleAssignment(getAccountId(), role))
+            this.roleAssignments.add(new RoleAssignment(this, role))
         );
 
         // Add domain event

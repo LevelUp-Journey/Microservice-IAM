@@ -1,9 +1,10 @@
 package com.levelupjourney.microserviceiam.IAM.application.internal.services;
 
+import org.springframework.stereotype.Service;
+
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.IamAudit;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.IamAuditRepository;
-import org.springframework.stereotype.Service;
 
 import java.util.Map;
 

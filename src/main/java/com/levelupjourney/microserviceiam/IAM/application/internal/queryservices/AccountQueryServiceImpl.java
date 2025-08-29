@@ -1,5 +1,8 @@
 package com.levelupjourney.microserviceiam.IAM.application.internal.queryservices;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
 import com.levelupjourney.microserviceiam.IAM.domain.model.entities.ExternalIdentity;
 import com.levelupjourney.microserviceiam.IAM.domain.model.queries.*;
@@ -7,8 +10,6 @@ import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.Role;
 import com.levelupjourney.microserviceiam.IAM.domain.services.AccountQueryService;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.AccountRepository;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.ExternalIdentityRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;

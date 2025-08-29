@@ -1,10 +1,5 @@
 package com.levelupjourney.microserviceiam.IAM.interfaces.rest;
 
-import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.tokens.TokenService;
-import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
-import com.levelupjourney.microserviceiam.IAM.domain.model.commands.OAuth2SignInCommand;
-import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.*;
-import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -15,6 +10,12 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+
+import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.tokens.TokenService;
+import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
+import com.levelupjourney.microserviceiam.IAM.domain.model.commands.OAuth2SignInCommand;
+import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.*;
+import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
 
 import java.util.Map;
 import java.util.Set;
