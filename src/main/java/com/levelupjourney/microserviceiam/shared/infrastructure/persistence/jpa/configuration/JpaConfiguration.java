@@ -11,12 +11,15 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @Configuration
 @EnableJpaRepositories(
     basePackages = {
-        "com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories"
+        "com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories",
+        "com.levelupjourney.microserviceiam.Profile.infrastructure.persistence.jpa.repositories"
     }
 )
 @EntityScan(
     basePackages = {
-        "com.levelupjourney.microserviceiam.IAM.domain.model"
+        "com.levelupjourney.microserviceiam.IAM.domain.model",
+        "com.levelupjourney.microserviceiam.Profile.domain.model",
+        "com.levelupjourney.microserviceiam.shared.domain.model"
     }
 )
 public class JpaConfiguration {
