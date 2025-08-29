@@ -89,4 +89,20 @@ public class IamAuditService {
         );
         auditRepository.save(audit);
     }
+    
+    public void auditExternalIdentityUpdate(AccountId actorId, AccountId accountId, String provider, String field, String oldValue, String newValue) {
+        IamAudit audit = new IamAudit(
+            actorId,
+            accountId,
+            IamAudit.Actions.EXTERNAL_IDENTITY_UPDATED,
+            null, // No user agent available from Profile context
+            Map.of(
+                "provider", provider,
+                "field", field,
+                "oldValue", oldValue != null ? oldValue : "",
+                "newValue", newValue != null ? newValue : ""
+            )
+        );
+        auditRepository.save(audit);
+    }
 }

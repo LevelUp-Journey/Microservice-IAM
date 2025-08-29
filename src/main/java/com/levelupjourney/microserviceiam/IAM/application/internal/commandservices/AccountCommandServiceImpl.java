@@ -254,13 +254,17 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         accountRepository.save(account);
         
         // Sync username change with Profile context through ACL
-        boolean profileUpdated = profileContextFacade.updateProfileUsername(
-            command.accountId().value(), 
-            command.newUsername().value()
-        );
-        
-        if (!profileUpdated) {
-            throw new RuntimeException("Failed to sync username update with Profile context");
+        try {
+            boolean profileUpdated = profileContextFacade.updateProfileUsername(
+                command.accountId().value(), 
+                command.newUsername().value()
+            );
+            
+            if (!profileUpdated) {
+                System.err.println("Warning: Failed to sync username update with Profile context for account: " + command.accountId().value());
+            }
+        } catch (Exception e) {
+            System.err.println("Warning: Exception during username sync with Profile context for account " + command.accountId().value() + ": " + e.getMessage());
         }
         
         auditService.auditUsernameChange(command.accountId(), command.accountId(), 

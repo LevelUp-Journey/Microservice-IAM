@@ -142,7 +142,8 @@ public class AccountContextualCommandService {
             throw new IllegalArgumentException("Account not found");
         }
         
-        if (accountRepository.existsByUsername(command.newUsername())) {
+        // Check if username exists for other accounts (excluding current account)
+        if (accountRepository.existsByUsernameAndAccountIdNot(command.newUsername(), command.accountId().value())) {
             throw new IllegalArgumentException("Username already exists");
         }
         
@@ -151,16 +152,6 @@ public class AccountContextualCommandService {
         account.updateUsername(command.newUsername());
         
         accountRepository.save(account);
-        
-        // Sync username change with Profile context through ACL
-        boolean profileUpdated = profileContextFacade.updateProfileUsername(
-            command.accountId().value(), 
-            command.newUsername().value()
-        );
-        
-        if (!profileUpdated) {
-            throw new RuntimeException("Failed to sync username update with Profile context");
-        }
         
         auditService.auditUsernameChange(command.accountId(), command.accountId(), 
                                        oldUsername, command.newUsername().value(), userAgent);

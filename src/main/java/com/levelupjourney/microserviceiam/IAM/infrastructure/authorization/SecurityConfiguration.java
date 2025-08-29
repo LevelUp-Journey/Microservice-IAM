@@ -57,7 +57,7 @@ public class SecurityConfiguration {
             )
             .oauth2Login(oauth2 -> oauth2
                 .successHandler(oAuth2AuthenticationSuccessHandler)
-                .failureUrl("/oauth2/error?message=authentication_failed")
+                .failureUrl("/api/v1/authentication/oauth2/error?message=authentication_failed")
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.decoder(jwtDecoder()))

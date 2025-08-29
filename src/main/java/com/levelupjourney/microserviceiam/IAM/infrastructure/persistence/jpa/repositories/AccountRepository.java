@@ -25,4 +25,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     boolean existsByEmail(EmailAddress email);
     
     boolean existsByUsername(Username username);
+    
+    @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM Account a WHERE a.username = :username AND a.id <> :accountId")
+    boolean existsByUsernameAndAccountIdNot(@Param("username") Username username, @Param("accountId") java.util.UUID accountId);
 }

@@ -95,15 +95,25 @@ public class UserProfileCommandServiceImpl implements UserProfileCommandService 
         
         userProfileRepository.save(userProfile);
         
-        // Sync username change with IAM context through ACL if username was changed
-        if (usernameChanged) {
-            UUID accountUpdated = iamContextFacade.updateAccountUsername(
-                command.accountId().value(), 
-                command.username().value()
-            );
-            
-            if (accountUpdated == null) {
-                throw new RuntimeException("Failed to sync username update with IAM context");
+        // Sync display name and avatar changes with IAM context for OAuth2 users
+        // (but NOT username to avoid circular dependencies)
+        boolean nameOrAvatarChanged = (command.name() != null && !userProfile.getName().equals(command.name())) ||
+                                     (command.avatarUrl() != null && !userProfile.getAvatarUrl().equals(command.avatarUrl()));
+                                     
+        if (nameOrAvatarChanged) {
+            try {
+                // Only sync name/avatar, never username
+                boolean synced = iamContextFacade.updateExternalIdentityProfile(
+                    command.accountId().value(),
+                    command.name() != null ? command.name().value() : null,
+                    command.avatarUrl() != null ? command.avatarUrl().url() : null
+                );
+                
+                if (!synced) {
+                    System.err.println("Warning: Failed to sync profile changes with IAM ExternalIdentity for account: " + command.accountId().value());
+                }
+            } catch (Exception e) {
+                System.err.println("Warning: Exception syncing profile changes with IAM for account " + command.accountId().value() + ": " + e.getMessage());
             }
         }
         

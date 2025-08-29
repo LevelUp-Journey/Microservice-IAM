@@ -37,6 +37,15 @@ public interface IamContextFacade {
     Set<String> getAccountRoles(UUID accountId);
     
     /**
+     * Updates the external identity profile information (name, avatar) for OAuth2 users
+     * @param accountId The account ID
+     * @param displayName The display name (can be null to keep current)
+     * @param avatarUrl The avatar URL (can be null to keep current)
+     * @return true if successful, false otherwise (e.g., user has no external identity)
+     */
+    boolean updateExternalIdentityProfile(UUID accountId, String displayName, String avatarUrl);
+    
+    /**
      * Simple account information DTO for ACL communication
      */
     record AccountInfo(

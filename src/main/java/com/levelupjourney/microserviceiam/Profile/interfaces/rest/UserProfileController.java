@@ -1,5 +1,6 @@
 package com.levelupjourney.microserviceiam.Profile.interfaces.rest;
 
+import com.levelupjourney.microserviceiam.IAM.interfaces.acl.IamContextFacade;
 import com.levelupjourney.microserviceiam.Profile.domain.model.queries.*;
 import com.levelupjourney.microserviceiam.Profile.domain.model.valueobjects.*;
 import com.levelupjourney.microserviceiam.Profile.domain.services.*;
@@ -28,11 +29,14 @@ public class UserProfileController {
     
     private final UserProfileQueryService userProfileQueryService;
     private final UserProfileCommandService userProfileCommandService;
+    private final IamContextFacade iamContextFacade;
     
     public UserProfileController(UserProfileQueryService userProfileQueryService, 
-                               UserProfileCommandService userProfileCommandService) {
+                               UserProfileCommandService userProfileCommandService,
+                               IamContextFacade iamContextFacade) {
         this.userProfileQueryService = userProfileQueryService;
         this.userProfileCommandService = userProfileCommandService;
+        this.iamContextFacade = iamContextFacade;
     }
     
     @PutMapping("/me")
@@ -57,21 +61,55 @@ public class UserProfileController {
             
             if (result.isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(new MessageResource("Failed to update profile"));
+                        .body(Map.of(
+                            "success", false,
+                            "message", "Failed to update profile",
+                            "iamSyncStatus", "not_attempted"
+                        ));
             }
             
-            return ResponseEntity.ok(new MessageResource("Profile updated successfully"));
+            // Sync profile changes with IAM context for external identity users
+            boolean iamSynced = false;
+            String syncStatus = "success";
+            
+            try {
+                // Only sync name/avatar changes (not username to avoid circular dependencies)
+                iamSynced = iamContextFacade.updateExternalIdentityProfile(
+                    accountId,
+                    resource.name(),
+                    resource.avatarUrl()
+                );
+                
+                if (!iamSynced) {
+                    syncStatus = "failed";
+                    System.err.println("Warning: Failed to sync profile update with IAM external identity for account: " + accountId);
+                }
+            } catch (Exception e) {
+                syncStatus = "error";
+                System.err.println("Warning: Exception during profile sync with IAM context for account " + accountId + ": " + e.getMessage());
+            }
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Profile updated successfully",
+                "iamSyncStatus", syncStatus
+            ));
             
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of(
                             "error", "VALIDATION_ERROR",
                             "message", e.getMessage(),
-                            "details", Map.of("field", "unknown")
+                            "details", Map.of("field", "unknown"),
+                            "iamSyncStatus", "not_attempted"
                     ));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
-                    .body(new MessageResource("Failed to update profile: " + e.getMessage()));
+                    .body(Map.of(
+                        "success", false,
+                        "message", "Failed to update profile: " + e.getMessage(),
+                        "iamSyncStatus", "not_attempted"
+                    ));
         }
     }
     

@@ -51,4 +51,16 @@ public class ExternalIdentity extends AuditableModel {
         this.name = name;
         this.avatarUrl = avatarUrl;
     }
+    
+    public void updateName(String newName) {
+        this.name = newName;
+        // Note: ExternalIdentity changes should be audited via IAM audit service
+        // when called from IamContextFacade
+    }
+    
+    public void updateAvatarUrl(String newAvatarUrl) {
+        this.avatarUrl = newAvatarUrl;
+        // Note: ExternalIdentity changes should be audited via IAM audit service
+        // when called from IamContextFacade
+    }
 }

@@ -81,5 +81,6 @@ public class IamAudit extends AuditableModel {
         public static final String USERNAME_CHANGED = "USERNAME_CHANGED";
         public static final String ACCOUNT_DEACTIVATED = "ACCOUNT_DEACTIVATED";
         public static final String CREDENTIALS_UPDATED = "CREDENTIALS_UPDATED";
+        public static final String EXTERNAL_IDENTITY_UPDATED = "EXTERNAL_IDENTITY_UPDATED";
     }
 }
