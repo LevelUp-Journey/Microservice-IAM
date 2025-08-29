@@ -1,5 +1,9 @@
 package com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects;
 
+/**
+ * Role enum representing the 3 fixed application roles
+ * The actual UUIDs are stored in the database roles table
+ */
 public enum Role {
     STUDENT("STUDENT"),
     ADMIN("ADMIN"),

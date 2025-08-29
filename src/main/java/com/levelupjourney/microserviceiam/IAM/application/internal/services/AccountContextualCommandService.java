@@ -1,11 +1,9 @@
-package com.levelupjourney.microserviceiam.IAM.application.internal.commandservices;
+package com.levelupjourney.microserviceiam.IAM.application.internal.services;
 
 import com.levelupjourney.microserviceiam.IAM.application.internal.outboundservices.hashing.HashingService;
-import com.levelupjourney.microserviceiam.IAM.application.internal.services.IamAuditService;
 import com.levelupjourney.microserviceiam.IAM.domain.model.aggregates.Account;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.*;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.*;
-import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.AccountRepository;
 import com.levelupjourney.microserviceiam.IAM.infrastructure.persistence.jpa.repositories.ExternalIdentityRepository;
 import com.levelupjourney.microserviceiam.Profile.domain.model.commands.CreateUserProfileFromAccountCommand;
@@ -14,9 +12,7 @@ import com.levelupjourney.microserviceiam.Profile.domain.model.valueobjects.Disp
 import com.levelupjourney.microserviceiam.Profile.domain.model.valueobjects.AvatarUrl;
 import com.levelupjourney.microserviceiam.Profile.domain.services.UserProfileCommandService;
 import com.levelupjourney.microserviceiam.Profile.interfaces.acl.ProfileContextFacade;
-import com.levelupjourney.microserviceiam.IAM.application.internal.services.RoleManagementService;
 
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,8 +20,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Contextual command service that handles IAM commands with user agent tracking
+ */
 @Service
-public class AccountCommandServiceImpl implements AccountCommandService {
+public class AccountContextualCommandService {
     
     private final AccountRepository accountRepository;
     private final ExternalIdentityRepository externalIdentityRepository;
@@ -35,13 +34,13 @@ public class AccountCommandServiceImpl implements AccountCommandService {
     private final ProfileContextFacade profileContextFacade;
     private final RoleManagementService roleManagementService;
     
-    public AccountCommandServiceImpl(AccountRepository accountRepository,
-                                   ExternalIdentityRepository externalIdentityRepository,
-                                   HashingService hashingService,
-                                   IamAuditService auditService,
-                                   UserProfileCommandService userProfileCommandService,
-                                   @Lazy ProfileContextFacade profileContextFacade,
-                                   RoleManagementService roleManagementService) {
+    public AccountContextualCommandService(AccountRepository accountRepository,
+                                         ExternalIdentityRepository externalIdentityRepository,
+                                         HashingService hashingService,
+                                         IamAuditService auditService,
+                                         UserProfileCommandService userProfileCommandService,
+                                         ProfileContextFacade profileContextFacade,
+                                         RoleManagementService roleManagementService) {
         this.accountRepository = accountRepository;
         this.externalIdentityRepository = externalIdentityRepository;
         this.hashingService = hashingService;
@@ -51,9 +50,8 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         this.roleManagementService = roleManagementService;
     }
     
-    @Override
     @Transactional
-    public Optional<Account> handle(SignUpCommand command) {
+    public Optional<Account> handleSignUp(SignUpCommand command, String userAgent) {
         if (accountRepository.existsByEmail(command.email())) {
             throw new IllegalArgumentException("Email already exists");
         }
@@ -78,14 +76,13 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         // Create UserProfile for local account
         createUserProfileForAccount(savedAccount, null, null);
         
-        auditService.auditSignUp(savedAccount.getAccountId(), null);
+        auditService.auditSignUp(savedAccount.getAccountId(), userAgent);
         
         return Optional.of(savedAccount);
     }
     
-    @Override
     @Transactional(readOnly = true)
-    public Optional<Account> handle(SignInCommand command) {
+    public Optional<Account> handleSignIn(SignInCommand command, String userAgent) {
         Optional<Account> accountOpt = accountRepository.findByEmailOrUsername(command.emailOrUsername());
         
         if (accountOpt.isEmpty()) {
@@ -106,13 +103,73 @@ public class AccountCommandServiceImpl implements AccountCommandService {
             return Optional.empty();
         }
         
-        auditService.auditSignIn(account.getAccountId(), null);
+        auditService.auditSignIn(account.getAccountId(), userAgent);
         return Optional.of(account);
     }
     
-    @Override
     @Transactional
-    public Optional<Account> handle(OAuth2SignInCommand command) {
+    public Optional<com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId> handleChangePassword(ChangePasswordCommand command, String userAgent) {
+        Optional<Account> accountOpt = accountRepository.findById(command.accountId().value());
+        
+        if (accountOpt.isEmpty()) {
+            throw new IllegalArgumentException("Account not found");
+        }
+        
+        Account account = accountOpt.get();
+        
+        if (!account.hasLocalCredentials()) {
+            throw new IllegalArgumentException("Account does not have local credentials");
+        }
+        
+        if (!hashingService.matches(command.currentPassword(), account.getCredential().getPasswordHash().hash())) {
+            throw new IllegalArgumentException("Current password is incorrect");
+        }
+        
+        PasswordHash newHashedPassword = new PasswordHash(hashingService.encode(command.newPassword()));
+        account.changePassword(newHashedPassword);
+        
+        accountRepository.save(account);
+        auditService.auditPasswordChange(command.accountId(), command.accountId(), userAgent);
+        
+        return Optional.of(account.getAccountId());
+    }
+    
+    @Transactional
+    public Optional<com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId> handleUpdateUsername(UpdateUsernameCommand command, String userAgent) {
+        Optional<Account> accountOpt = accountRepository.findById(command.accountId().value());
+        
+        if (accountOpt.isEmpty()) {
+            throw new IllegalArgumentException("Account not found");
+        }
+        
+        if (accountRepository.existsByUsername(command.newUsername())) {
+            throw new IllegalArgumentException("Username already exists");
+        }
+        
+        Account account = accountOpt.get();
+        String oldUsername = account.getUsername().value();
+        account.updateUsername(command.newUsername());
+        
+        accountRepository.save(account);
+        
+        // Sync username change with Profile context through ACL
+        boolean profileUpdated = profileContextFacade.updateProfileUsername(
+            command.accountId().value(), 
+            command.newUsername().value()
+        );
+        
+        if (!profileUpdated) {
+            throw new RuntimeException("Failed to sync username update with Profile context");
+        }
+        
+        auditService.auditUsernameChange(command.accountId(), command.accountId(), 
+                                       oldUsername, command.newUsername().value(), userAgent);
+        
+        return Optional.of(account.getAccountId());
+    }
+    
+    @Transactional
+    public Optional<Account> handleOAuth2SignIn(OAuth2SignInCommand command, String userAgent) {
         var existingIdentity = externalIdentityRepository.findByProviderAndProviderUserId(
             command.provider(), command.providerUserId()
         );
@@ -120,7 +177,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         if (existingIdentity.isPresent()) {
             Optional<Account> account = accountRepository.findById(existingIdentity.get().getAccount().getAccountId().value());
             if (account.isPresent()) {
-                auditService.auditSignIn(account.get().getAccountId(), null);
+                auditService.auditSignIn(account.get().getAccountId(), userAgent);
                 return account;
             }
         }
@@ -132,7 +189,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
                 String avatarUrl = extractAvatarFromAttributes(command.attributes());
                 existingAccount.get().linkExternalIdentity(command.provider(), command.providerUserId(), name, avatarUrl);
                 Account savedAccount = accountRepository.save(existingAccount.get());
-                auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), null);
+                auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), userAgent);
                 return Optional.of(savedAccount);
             }
         }
@@ -161,8 +218,8 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         // Create UserProfile for OAuth2 account
         createUserProfileForAccount(savedAccount, name, avatarUrl);
         
-        auditService.auditSignUp(savedAccount.getAccountId(), null);
-        auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), null);
+        auditService.auditSignUp(savedAccount.getAccountId(), userAgent);
+        auditService.auditOAuth2Link(savedAccount.getAccountId(), command.provider().provider(), userAgent);
         
         return Optional.of(savedAccount);
     }
@@ -204,74 +261,5 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         );
         
         userProfileCommandService.handle(command);
-    }
-    
-    @Override
-    @Transactional
-    public Optional<com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId> handle(ChangePasswordCommand command) {
-        Optional<Account> accountOpt = accountRepository.findById(command.accountId().value());
-        
-        if (accountOpt.isEmpty()) {
-            throw new IllegalArgumentException("Account not found");
-        }
-        
-        Account account = accountOpt.get();
-        
-        if (!account.hasLocalCredentials()) {
-            throw new IllegalArgumentException("Account does not have local credentials");
-        }
-        
-        if (!hashingService.matches(command.currentPassword(), account.getCredential().getPasswordHash().hash())) {
-            throw new IllegalArgumentException("Current password is incorrect");
-        }
-        
-        PasswordHash newHashedPassword = new PasswordHash(hashingService.encode(command.newPassword()));
-        account.changePassword(newHashedPassword);
-        
-        accountRepository.save(account);
-        auditService.auditPasswordChange(command.accountId(), command.accountId(), null);
-        
-        return Optional.of(account.getAccountId());
-    }
-    
-    @Override
-    @Transactional
-    public Optional<com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.AccountId> handle(UpdateUsernameCommand command) {
-        Optional<Account> accountOpt = accountRepository.findById(command.accountId().value());
-        
-        if (accountOpt.isEmpty()) {
-            throw new IllegalArgumentException("Account not found");
-        }
-        
-        if (accountRepository.existsByUsername(command.newUsername())) {
-            throw new IllegalArgumentException("Username already exists");
-        }
-        
-        Account account = accountOpt.get();
-        String oldUsername = account.getUsername().value();
-        account.updateUsername(command.newUsername());
-        
-        accountRepository.save(account);
-        
-        // Sync username change with Profile context through ACL
-        boolean profileUpdated = profileContextFacade.updateProfileUsername(
-            command.accountId().value(), 
-            command.newUsername().value()
-        );
-        
-        if (!profileUpdated) {
-            throw new RuntimeException("Failed to sync username update with Profile context");
-        }
-        
-        auditService.auditUsernameChange(command.accountId(), command.accountId(), 
-                                       oldUsername, command.newUsername().value(), null);
-        
-        return Optional.of(account.getAccountId());
-    }
-    
-    @Override
-    @Transactional
-    public void handle(SeedRolesCommand command) {
-        // This is handled automatically by the enum, no seeding needed
     }
 }

@@ -12,8 +12,8 @@ import com.levelupjourney.microserviceiam.IAM.domain.model.commands.OAuth2SignIn
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.SignInCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.commands.UpdateUsernameCommand;
 import com.levelupjourney.microserviceiam.IAM.domain.model.valueobjects.*;
-import com.levelupjourney.microserviceiam.IAM.domain.services.AccountCommandService;
 import com.levelupjourney.microserviceiam.IAM.application.internal.services.AuthenticationService;
+import com.levelupjourney.microserviceiam.IAM.application.internal.services.AccountContextualCommandService;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.resources.*;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.AuthenticatedUserResourceFromEntityAssembler;
 import com.levelupjourney.microserviceiam.IAM.interfaces.rest.transform.SignUpCommandFromResourceAssembler;
@@ -29,6 +29,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -39,14 +40,14 @@ import java.util.UUID;
 @Tag(name = "Authentication", description = "Authentication management endpoints")
 public class AuthenticationController {
     
-    private final AccountCommandService accountCommandService;
+    private final AccountContextualCommandService accountContextualCommandService;
     private final TokenService tokenService;
     private final AuthenticationService authenticationService;
     
-    public AuthenticationController(AccountCommandService accountCommandService, 
+    public AuthenticationController(AccountContextualCommandService accountContextualCommandService,
                                    TokenService tokenService,
                                    AuthenticationService authenticationService) {
-        this.accountCommandService = accountCommandService;
+        this.accountContextualCommandService = accountContextualCommandService;
         this.tokenService = tokenService;
         this.authenticationService = authenticationService;
     }
@@ -58,10 +59,11 @@ public class AuthenticationController {
         @ApiResponse(responseCode = "400", description = "Invalid input or user already exists"),
         @ApiResponse(responseCode = "422", description = "Validation error")
     })
-    public ResponseEntity<?> signUp(@Valid @RequestBody SignUpResource resource) {
+    public ResponseEntity<?> signUp(@Valid @RequestBody SignUpResource resource,
+                                   HttpServletRequest request) {
         try {
             var command = SignUpCommandFromResourceAssembler.toCommandFromResource(resource);
-            var accountOpt = accountCommandService.handle(command);
+            var accountOpt = accountContextualCommandService.handleSignUp(command, extractUserAgent(request));
             
             if (accountOpt.isEmpty()) {
                 return ResponseEntity.badRequest()
@@ -97,10 +99,11 @@ public class AuthenticationController {
         @ApiResponse(responseCode = "401", description = "Invalid credentials"),
         @ApiResponse(responseCode = "422", description = "Validation error")
     })
-    public ResponseEntity<?> signIn(@Valid @RequestBody SignInResource resource) {
+    public ResponseEntity<?> signIn(@Valid @RequestBody SignInResource resource,
+                                   HttpServletRequest request) {
         try {
             var command = new SignInCommand(resource.emailOrUsername(), resource.password());
-            var accountOpt = accountCommandService.handle(command);
+            var accountOpt = accountContextualCommandService.handleSignIn(command, extractUserAgent(request));
             
             if (accountOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -134,7 +137,8 @@ public class AuthenticationController {
     })
     public ResponseEntity<?> changePassword(@PathVariable UUID accountId,
                                           @Valid @RequestBody ChangePasswordResource resource,
-                                          Authentication authentication) {
+                                          Authentication authentication,
+                                          HttpServletRequest request) {
         try {
             // Verify user can only change their own password
             UUID authenticatedAccountId = authenticationService.getAccountIdFromAuthentication(authentication);
@@ -149,7 +153,7 @@ public class AuthenticationController {
                 resource.newPassword()
             );
             
-            var result = accountCommandService.handle(command);
+            var result = accountContextualCommandService.handleChangePassword(command, extractUserAgent(request));
             
             if (result.isEmpty()) {
                 return ResponseEntity.badRequest()
@@ -183,7 +187,8 @@ public class AuthenticationController {
     })
     public ResponseEntity<?> updateUsername(@PathVariable UUID accountId,
                                           @Valid @RequestBody UpdateUsernameResource resource,
-                                          Authentication authentication) {
+                                          Authentication authentication,
+                                          HttpServletRequest request) {
         try {
             // Verify user can only change their own username
             UUID authenticatedAccountId = authenticationService.getAccountIdFromAuthentication(authentication);
@@ -197,7 +202,7 @@ public class AuthenticationController {
                 new Username(resource.username())
             );
             
-            var result = accountCommandService.handle(command);
+            var result = accountContextualCommandService.handleUpdateUsername(command, extractUserAgent(request));
             
             if (result.isEmpty()) {
                 return ResponseEntity.badRequest()
@@ -277,8 +282,8 @@ public class AuthenticationController {
                 Set.of(Role.getDefaultRole())
             );
             
-            // Handle OAuth2 sign in
-            var accountOpt = accountCommandService.handle(command);
+            // Handle OAuth2 sign in - note: oauth2 callback doesn't have direct request access for user agent
+            var accountOpt = accountContextualCommandService.handleOAuth2SignIn(command, null);
             
             if (accountOpt.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of(
@@ -309,25 +314,6 @@ public class AuthenticationController {
         }
     }
 
-    @GetMapping("/oauth2/status")
-    @Operation(summary = "Get current OAuth2 authentication status", description = "Returns current OAuth2 authentication status")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Authentication status returned"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized")
-    })
-    public ResponseEntity<Map<String, Object>> oauth2Status(@AuthenticationPrincipal OAuth2User oauth2User) {
-        if (oauth2User != null) {
-            return ResponseEntity.ok(Map.of(
-                "authenticated", true,
-                "provider", determineProvider(oauth2User),
-                "name", extractName(oauth2User, determineProvider(oauth2User)),
-                "email", extractEmail(oauth2User, determineProvider(oauth2User))
-            ));
-        } else {
-            return ResponseEntity.ok(Map.of("authenticated", false));
-        }
-    }
-    
     private String determineProvider(OAuth2User oauth2User) {
         // Check for Google-specific attributes
         if (oauth2User.getAttributes().containsKey("sub")) {
@@ -358,5 +344,9 @@ public class AuthenticationController {
             }
             default -> oauth2User.getAttribute("name");
         };
+    }
+    
+    private String extractUserAgent(HttpServletRequest request) {
+        return request.getHeader("User-Agent");
     }
 }
