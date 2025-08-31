@@ -23,14 +23,8 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfiguration {
     
-    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
-    
     @Value("${app.jwt.secret}")
     private String jwtSecret;
-    
-    public SecurityConfiguration(OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler) {
-        this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
-    }
     
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -46,7 +40,6 @@ public class SecurityConfiguration {
                 .requestMatchers("/api/v1/authentication/sign-in").permitAll()
                 .requestMatchers("/api/v1/authentication/oauth2/**").permitAll()
                 .requestMatchers("/oauth2/**").permitAll()
-                .requestMatchers("/login/oauth2/**").permitAll()
                 // Protected endpoints - Require JWT authentication
                 .requestMatchers("/api/v1/authentication/accounts/**").authenticated()
                 .requestMatchers("/api/v1/users/**").authenticated()
@@ -56,10 +49,6 @@ public class SecurityConfiguration {
                 .requestMatchers("/actuator/**", "/health").permitAll()
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
-            )
-            .oauth2Login(oauth2 -> oauth2
-                .successHandler(oAuth2AuthenticationSuccessHandler)
-                .failureUrl("/api/v1/authentication/oauth2/error?message=authentication_failed")
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.decoder(jwtDecoder()))
