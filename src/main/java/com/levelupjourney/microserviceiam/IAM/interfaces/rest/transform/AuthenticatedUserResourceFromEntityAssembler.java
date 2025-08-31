@@ -17,4 +17,15 @@ public class AuthenticatedUserResourceFromEntityAssembler {
             refreshToken
         );
     }
+    
+    public static AuthenticatedUserResource toResourceFromEntityWithoutTokens(Account account) {
+        return new AuthenticatedUserResource(
+            account.getAccountId().value(),
+            account.getUsername().value(),
+            account.getEmail().email(),
+            account.getRoles().stream().map(Role::getName).collect(Collectors.toSet()),
+            null,
+            null
+        );
+    }
 }

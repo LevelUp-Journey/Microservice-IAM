@@ -62,7 +62,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             var accountOpt = accountCommandService.handle(command);
             
             if (accountOpt.isEmpty()) {
-                response.sendRedirect("/oauth2/error?message=OAuth2 sign in failed");
+                response.sendRedirect("/api/v1/authentication/oauth2/error?message=OAuth2 sign in failed");
                 return;
             }
             
@@ -71,12 +71,12 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             String refreshToken = tokenService.generateRefreshToken(account);
             
             // Redirect to success endpoint with tokens as query parameters
-            String redirectUrl = String.format("/oauth2/success?access_token=%s&refresh_token=%s&provider=%s", 
+            String redirectUrl = String.format("/api/v1/authentication/oauth2/callback?access_token=%s&refresh_token=%s&provider=%s", 
                 accessToken, refreshToken, provider);
             response.sendRedirect(redirectUrl);
             
         } catch (Exception e) {
-            response.sendRedirect("/oauth2/error?message=" + e.getMessage());
+            response.sendRedirect("/api/v1/authentication/oauth2/error?message=" + e.getMessage());
         }
     }
     

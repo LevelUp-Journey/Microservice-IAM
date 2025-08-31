@@ -89,22 +89,36 @@ public class Account extends AuditableAbstractAggregateRoot<Account> {
         this.status = AccountStatus.ACTIVE;
     }
 
-    public void addRole(Role role) {
+    public void addRole(com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role role) {
         this.roleAssignments.add(new RoleAssignment(this, role));
     }
 
-    public void removeRole(Role role) {
+    public void removeRole(com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role role) {
         this.roleAssignments.removeIf(ra -> ra.getRole().equals(role));
     }
 
-    public Set<Role> getRoles() {
+    public Set<com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role> getRoleEntities() {
         return roleAssignments.stream()
             .map(RoleAssignment::getRole)
             .collect(java.util.stream.Collectors.toSet());
     }
+    
+    /**
+     * Get role enums for backward compatibility
+     */
+    public Set<Role> getRoles() {
+        return roleAssignments.stream()
+            .map(ra -> Role.fromString(ra.getRole().getName()))
+            .collect(java.util.stream.Collectors.toSet());
+    }
 
+    public boolean hasRole(com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role role) {
+        return getRoleEntities().contains(role);
+    }
+    
     public boolean hasRole(Role role) {
-        return getRoles().contains(role);
+        return roleAssignments.stream()
+            .anyMatch(ra -> ra.getRole().getName().equals(role.getName()));
     }
 
     public boolean isActive() {
@@ -125,12 +139,12 @@ public class Account extends AuditableAbstractAggregateRoot<Account> {
         this.externalIdentities.add(new ExternalIdentity(this, provider, providerUserId, name, avatarUrl));
     }
     
-    public void initializeLocalAccount(PasswordHash passwordHash, Set<Role> roles, Username username) {
+    public void initializeLocalAccount(PasswordHash passwordHash, Set<com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role> roleEntities, Username username) {
         // Add credential
         this.credential = new Credential(this, passwordHash);
         
         // Add role assignments
-        roles.forEach(role -> 
+        roleEntities.forEach(role -> 
             this.roleAssignments.add(new RoleAssignment(this, role))
         );
 
@@ -138,12 +152,12 @@ public class Account extends AuditableAbstractAggregateRoot<Account> {
         addDomainEvent(new AccountRegisteredEvent(getAccountId(), "local", username));
     }
     
-    public void initializeOAuth2Account(AuthProvider provider, String providerUserId, String name, String avatarUrl, Set<Role> roles, Username username) {
+    public void initializeOAuth2Account(AuthProvider provider, String providerUserId, String name, String avatarUrl, Set<com.levelupjourney.microserviceiam.IAM.domain.model.entities.Role> roleEntities, Username username) {
         // Add external identity with OAuth2 data
         this.externalIdentities.add(new ExternalIdentity(this, provider, providerUserId, name, avatarUrl));
         
         // Add role assignments
-        roles.forEach(role -> 
+        roleEntities.forEach(role -> 
             this.roleAssignments.add(new RoleAssignment(this, role))
         );
 
