@@ -39,6 +39,8 @@ public class SecurityConfiguration {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
+                // Root path
+                .requestMatchers("/").permitAll()
                 // Public endpoints - Authentication (sign-up, sign-in, oauth2)
                 .requestMatchers("/api/v1/authentication/sign-up").permitAll()
                 .requestMatchers("/api/v1/authentication/sign-in").permitAll()
