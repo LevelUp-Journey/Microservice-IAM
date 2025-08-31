@@ -11,7 +11,6 @@ import com.levelupjourney.microserviceiam.Profile.domain.model.valueobjects.Publ
 import com.levelupjourney.microserviceiam.Profile.domain.model.valueobjects.DisplayName;
 import com.levelupjourney.microserviceiam.Profile.domain.model.valueobjects.AvatarUrl;
 import com.levelupjourney.microserviceiam.Profile.domain.services.UserProfileCommandService;
-import com.levelupjourney.microserviceiam.Profile.interfaces.acl.ProfileContextFacade;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +30,6 @@ public class AccountContextualCommandService {
     private final HashingService hashingService;
     private final IamAuditService auditService;
     private final UserProfileCommandService userProfileCommandService;
-    private final ProfileContextFacade profileContextFacade;
     private final RoleManagementService roleManagementService;
     
     public AccountContextualCommandService(AccountRepository accountRepository,
@@ -39,14 +37,12 @@ public class AccountContextualCommandService {
                                          HashingService hashingService,
                                          IamAuditService auditService,
                                          UserProfileCommandService userProfileCommandService,
-                                         ProfileContextFacade profileContextFacade,
                                          RoleManagementService roleManagementService) {
         this.accountRepository = accountRepository;
         this.externalIdentityRepository = externalIdentityRepository;
         this.hashingService = hashingService;
         this.auditService = auditService;
         this.userProfileCommandService = userProfileCommandService;
-        this.profileContextFacade = profileContextFacade;
         this.roleManagementService = roleManagementService;
     }
     

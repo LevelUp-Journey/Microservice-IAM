@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class UserProfileCommandServiceImpl implements UserProfileCommandService {
@@ -81,14 +80,12 @@ public class UserProfileCommandServiceImpl implements UserProfileCommandService 
         }
         
         UserProfile userProfile = profileOpt.get();
-        boolean usernameChanged = false;
         
         // Check username uniqueness if it's being changed
         if (command.username() != null && !userProfile.getUsername().equals(command.username())) {
             if (userProfileRepository.existsByUsername(command.username())) {
                 throw new IllegalArgumentException("Username already exists");
             }
-            usernameChanged = true;
         }
         
         userProfile.updateProfile(command.username(), command.name(), command.avatarUrl(), command.accountId());
