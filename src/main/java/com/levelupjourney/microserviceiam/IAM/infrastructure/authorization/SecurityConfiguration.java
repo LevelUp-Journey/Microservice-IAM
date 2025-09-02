@@ -64,8 +64,11 @@ public class SecurityConfiguration {
                 // Protected endpoints - Require JWT authentication
                 .requestMatchers("/api/v1/authentication/accounts/**").authenticated()
                 .requestMatchers("/api/v1/users/**").authenticated()
-                // Swagger/OpenAPI endpoints
+                // Swagger/OpenAPI endpoints (direct and via Gateway)
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                .requestMatchers("/api/v1/authentication/v3/api-docs/**").permitAll()
+                .requestMatchers("/api/v1/authentication/swagger-ui/**").permitAll()
+                .requestMatchers("/api/v1/authentication/swagger-ui.html").permitAll()
                 // Health check and actuator endpoints
                 .requestMatchers("/actuator/**", "/health").permitAll()
                 // All other endpoints require authentication
