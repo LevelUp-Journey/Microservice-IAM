@@ -17,7 +17,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import javax.crypto.spec.SecretKeySpec;
 
 import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -27,6 +26,21 @@ public class SecurityConfiguration {
     
     @Value("${app.jwt.secret}")
     private String jwtSecret;
+    
+    @Value("${app.cors.allowed-origins}")
+    private String[] allowedOrigins;
+    
+    @Value("${app.cors.allowed-methods}")
+    private String[] allowedMethods;
+    
+    @Value("${app.cors.allowed-headers}")
+    private String[] allowedHeaders;
+    
+    @Value("${app.cors.allow-credentials}")
+    private boolean allowCredentials;
+    
+    @Value("${app.cors.max-age}")
+    private long maxAge;
     
     public SecurityConfiguration(OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler) {
         this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
@@ -80,11 +94,11 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins));
+        configuration.setAllowedMethods(Arrays.asList(allowedMethods));
+        configuration.setAllowedHeaders(Arrays.asList(allowedHeaders));
+        configuration.setAllowCredentials(allowCredentials);
+        configuration.setMaxAge(maxAge);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
