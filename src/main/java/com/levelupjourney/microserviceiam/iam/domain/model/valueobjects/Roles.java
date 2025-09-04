@@ -7,7 +7,7 @@ package com.levelupjourney.microserviceiam.iam.domain.model.valueobjects;
  * </p>
  */
 public enum Roles {
-    ROLE_USER,
+    ROLE_STUDENT,
     ROLE_ADMIN,
     ROLE_INSTRUCTOR
 }

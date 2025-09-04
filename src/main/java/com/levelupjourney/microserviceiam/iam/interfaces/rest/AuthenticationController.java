@@ -1,6 +1,7 @@
 package com.levelupjourney.microserviceiam.iam.interfaces.rest;
 
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
+import com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt.BearerTokenService;
 import com.levelupjourney.microserviceiam.iam.interfaces.rest.resources.AuthenticatedUserResource;
 import com.levelupjourney.microserviceiam.iam.interfaces.rest.resources.SignInResource;
 import com.levelupjourney.microserviceiam.iam.interfaces.rest.resources.SignUpResource;
@@ -16,10 +17,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 
 /**
  * AuthenticationController
@@ -37,9 +38,11 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Authentication", description = "Available Authentication Endpoints")
 public class AuthenticationController {
     private final UserCommandService userCommandService;
+    private final BearerTokenService tokenService;
 
-    public AuthenticationController(UserCommandService userCommandService) {
+    public AuthenticationController(UserCommandService userCommandService, BearerTokenService tokenService) {
         this.userCommandService = userCommandService;
+        this.tokenService = tokenService;
     }
 
     /**
@@ -81,5 +84,54 @@ public class AuthenticationController {
         var userResource = UserResourceFromEntityAssembler.toResourceFromEntity(user.get());
         return new ResponseEntity<>(userResource, HttpStatus.CREATED);
 
+    }
+
+    /**
+     * Handles the logout request.
+     * @param request the HTTP request.
+     * @return the logout response.
+     */
+    @PostMapping("/logout")
+    @Operation(summary = "Logout", description = "Logout current user session.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User logged out successfully.")})
+    public ResponseEntity<Map<String, String>> logout(HttpServletRequest request) {
+        return ResponseEntity.ok(Map.of("message", "User logged out successfully"));
+    }
+
+    /**
+     * Validates the current token/session.
+     * @param request the HTTP request.
+     * @return the validation response.
+     */
+    @GetMapping("/validate")
+    @Operation(summary = "Validate Token", description = "Validate current user token/session.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token is valid."),
+            @ApiResponse(responseCode = "401", description = "Token is invalid or expired.")})
+    public ResponseEntity<Map<String, Object>> validateToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            try {
+                if (tokenService.validateToken(token)) {
+                    String username = tokenService.getUsernameFromToken(token);
+                    return ResponseEntity.ok(Map.of(
+                        "valid", true,
+                        "message", "Token is valid",
+                        "username", username
+                    ));
+                }
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "valid", false,
+                    "message", "Invalid token: " + e.getMessage()
+                ));
+            }
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+            "valid", false,
+            "message", "Invalid or missing token"
+        ));
     }
 }

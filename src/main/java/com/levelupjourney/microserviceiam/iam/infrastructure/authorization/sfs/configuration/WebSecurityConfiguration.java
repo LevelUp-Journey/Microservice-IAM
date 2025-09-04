@@ -2,6 +2,9 @@ package com.levelupjourney.microserviceiam.iam.infrastructure.authorization.sfs.
 
 import com.levelupjourney.microserviceiam.iam.infrastructure.authorization.sfs.pipeline.BearerAuthorizationRequestFilter;
 import com.levelupjourney.microserviceiam.iam.infrastructure.hashing.bcrypt.BCryptHashingService;
+import com.levelupjourney.microserviceiam.iam.infrastructure.oauth2.OAuth2AuthenticationSuccessHandler;
+import com.levelupjourney.microserviceiam.iam.infrastructure.oauth2.OAuth2AuthenticationFailureHandler;
+import com.levelupjourney.microserviceiam.iam.infrastructure.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt.BearerTokenService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -40,6 +43,12 @@ public class WebSecurityConfiguration {
     private final BCryptHashingService hashingService;
 
     private final AuthenticationEntryPoint unauthorizedRequestHandler;
+
+    private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+
+    private final OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
+
+    private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
     /**
      * This method creates the Bearer Authorization Request Filter.
@@ -104,12 +113,19 @@ public class WebSecurityConfiguration {
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                         .requestMatchers(
                                 "/api/v1/authentication/**",
+                                "/oauth2/**",
+                                "/login/oauth2/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/swagger-resources/**",
                                 "/webjars/**").permitAll()
-                        .anyRequest().authenticated());
+                        .anyRequest().authenticated())
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(authorizationEndpoint ->
+                            authorizationEndpoint.authorizationRequestRepository(httpCookieOAuth2AuthorizationRequestRepository))
+                        .successHandler(oauth2AuthenticationSuccessHandler)
+                        .failureHandler(oauth2AuthenticationFailureHandler));
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(authorizationRequestFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -122,11 +138,22 @@ public class WebSecurityConfiguration {
      * @param tokenService The token service
      * @param hashingService The hashing service
      * @param authenticationEntryPoint The authentication entry point
+     * @param oauth2AuthenticationSuccessHandler The OAuth2 success handler
+     * @param oauth2AuthenticationFailureHandler The OAuth2 failure handler
      */
-    public WebSecurityConfiguration(@Qualifier("defaultUserDetailsService") UserDetailsService userDetailsService, BearerTokenService tokenService, BCryptHashingService hashingService, AuthenticationEntryPoint authenticationEntryPoint) {
+    public WebSecurityConfiguration(@Qualifier("defaultUserDetailsService") UserDetailsService userDetailsService, 
+                                   BearerTokenService tokenService, 
+                                   BCryptHashingService hashingService, 
+                                   AuthenticationEntryPoint authenticationEntryPoint,
+                                   OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler,
+                                   OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler,
+                                   HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository) {
         this.userDetailsService = userDetailsService;
         this.tokenService = tokenService;
         this.hashingService = hashingService;
         this.unauthorizedRequestHandler = authenticationEntryPoint;
+        this.oauth2AuthenticationSuccessHandler = oauth2AuthenticationSuccessHandler;
+        this.oauth2AuthenticationFailureHandler = oauth2AuthenticationFailureHandler;
+        this.httpCookieOAuth2AuthorizationRequestRepository = httpCookieOAuth2AuthorizationRequestRepository;
     }
 }

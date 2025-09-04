@@ -5,6 +5,7 @@ import com.levelupjourney.microserviceiam.iam.application.internal.outboundservi
 import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignInCommand;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignUpCommand;
+import com.levelupjourney.microserviceiam.iam.domain.model.entities.Role;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.iam.infrastructure.persistence.jpa.repositories.RoleRepository;
 import com.levelupjourney.microserviceiam.iam.infrastructure.persistence.jpa.repositories.UserRepository;
@@ -68,7 +69,8 @@ public class UserCommandServiceImpl implements UserCommandService {
     public Optional<User> handle(SignUpCommand command) {
         if (userRepository.existsByUsername(command.username()))
             throw new RuntimeException("Username already exists");
-        var roles = command.roles().stream().map(role -> roleRepository.findByName(role.getName()).orElseThrow(() -> new RuntimeException("Role name not found"))).toList();
+        var validatedRoles = Role.validateRoleSet(command.roles());
+        var roles = validatedRoles.stream().map(role -> roleRepository.findByName(role.getName()).orElseThrow(() -> new RuntimeException("Role name not found"))).toList();
         var user = new User(command.username(), hashingService.encode(command.password()), roles);
         userRepository.save(user);
         return userRepository.findByUsername(command.username());
