@@ -4,11 +4,6 @@ public record CreateProfileCommand(
         String firstName,
         String lastName,
         String username,
-        String street,
-        String number,
-        String city,
-        String state,
-        String postalCode,
-        String country
+        String profileUrl
 ) {
 }

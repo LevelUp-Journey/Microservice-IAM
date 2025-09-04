@@ -17,11 +17,6 @@ public class CreateProfileCommandFromResourceAssembler {
                 resource.firstName(),
                 resource.lastName(),
                 resource.username(),
-                resource.street(),
-                resource.number(),
-                resource.city(),
-                resource.state(),
-                resource.postalCode(),
-                resource.country());
+                resource.profileUrl());
     }
 }

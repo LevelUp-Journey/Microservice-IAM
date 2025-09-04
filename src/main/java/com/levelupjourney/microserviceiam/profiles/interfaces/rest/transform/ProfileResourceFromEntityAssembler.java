@@ -15,8 +15,9 @@ public class ProfileResourceFromEntityAssembler {
     public static ProfileResource toResourceFromEntity(Profile entity) {
         return new ProfileResource(
                 entity.getId(),
-                entity.getFullName(),
                 entity.getUsername(),
-                entity.getStreetAddress());
+                entity.getProfileUrl(),
+                entity.getFirstName(),
+                entity.getLastName());
     }
 }

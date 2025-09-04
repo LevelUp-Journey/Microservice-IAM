@@ -24,22 +24,12 @@ public class ProfilesContextFacadeImpl implements ProfilesContextFacade {
             String firstName,
             String lastName,
             String username,
-            String street,
-            String number,
-            String city,
-            String state,
-            String postalCode,
-            String country) {
+            String profileUrl) {
         var createProfileCommand = new CreateProfileCommand(
                 firstName,
                 lastName,
                 username,
-                street,
-                number,
-                city,
-                state,
-                postalCode,
-                country);
+                profileUrl);
         var profile = profileCommandService.handle(createProfileCommand);
         return profile.isEmpty() ? null : profile.get().getId();
     }
