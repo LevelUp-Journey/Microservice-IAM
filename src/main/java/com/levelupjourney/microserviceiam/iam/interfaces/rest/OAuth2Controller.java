@@ -71,14 +71,14 @@ public class OAuth2Controller {
 
     private String handleOAuth2User(OAuth2User oauth2User) {
         Map<String, Object> attributes = oauth2User.getAttributes();
-        String email = extractEmail(attributes);
+        String email_address = extractemail_address(attributes);
         String username = extractUsername(attributes);
 
-        if (email == null || username == null) {
-            throw new RuntimeException("Email or username not found in OAuth2 user attributes");
+        if (email_address == null || username == null) {
+            throw new RuntimeException("email_address or username not found in OAuth2 user attributes");
         }
 
-        Optional<User> existingUser = userQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByUsernameQuery(username));
+        Optional<User> existingUser = userQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery(username));
         
         User user;
         if (existingUser.isPresent()) {
@@ -96,12 +96,12 @@ public class OAuth2Controller {
             user = newUser.get();
         }
 
-        return tokenService.generateToken(user.getUsername());
+        return tokenService.generateToken(user.getEmail_address());
     }
 
-    private String extractEmail(Map<String, Object> attributes) {
-        if (attributes.containsKey("email")) {
-            return (String) attributes.get("email");
+    private String extractemail_address(Map<String, Object> attributes) {
+        if (attributes.containsKey("email_address")) {
+            return (String) attributes.get("email_address");
         }
         return null;
     }
@@ -110,8 +110,8 @@ public class OAuth2Controller {
         if (attributes.containsKey("login")) {
             return (String) attributes.get("login");
         }
-        if (attributes.containsKey("email")) {
-            return (String) attributes.get("email");
+        if (attributes.containsKey("email_address")) {
+            return (String) attributes.get("email_address");
         }
         return null;
     }

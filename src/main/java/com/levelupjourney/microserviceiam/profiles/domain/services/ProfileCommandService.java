@@ -14,7 +14,7 @@ public interface ProfileCommandService {
      *
      * @param command The {@link CreateProfileCommand} Command
      * @return A {@link Profile} instance if the command is valid, otherwise empty
-     * @throws IllegalArgumentException if the email address already exists
+     * @throws IllegalArgumentException if the username already exists
      */
     Optional<Profile> handle(CreateProfileCommand command);
 }

@@ -27,7 +27,7 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     @NotBlank
     @Size(max = 50)
     @Column(unique = true)
-    private String username;
+    private String email_address;
 
     @NotBlank
     @Size(max = 120)
@@ -42,14 +42,14 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     public User() {
         this.roles = new HashSet<>();
     }
-    public User(String username, String password) {
-        this.username = username;
+    public User(String email_address, String password) {
+        this.email_address = email_address;
         this.password = password;
         this.roles = new HashSet<>();
     }
 
-    public User(String username, String password, List<Role> roles) {
-        this(username, password);
+    public User(String email_address, String password, List<Role> roles) {
+        this(email_address, password);
         addRoles(roles);
     }
 
@@ -72,6 +72,22 @@ public class User extends AuditableAbstractAggregateRoot<User> {
         var validatedRoleSet = Role.validateRoleSet(roles);
         this.roles.addAll(validatedRoleSet);
         return this;
+    }
+
+    /**
+     * Get username (for compatibility - returns email_address)
+     * @return the email_address as username
+     */
+    public String getEmail_address() {
+        return this.email_address;
+    }
+
+    /**
+     * Set username (for compatibility - sets email_address)
+     * @param email_address the email_address (email_address)
+     */
+    public void setEmail_address(String email_address) {
+        this.email_address = email_address;
     }
 
 }

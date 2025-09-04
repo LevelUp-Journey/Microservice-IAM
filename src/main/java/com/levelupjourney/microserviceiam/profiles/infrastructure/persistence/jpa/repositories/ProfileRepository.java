@@ -1,7 +1,7 @@
 package com.levelupjourney.microserviceiam.profiles.infrastructure.persistence.jpa.repositories;
 
 import com.levelupjourney.microserviceiam.profiles.domain.model.aggregates.Profile;
-import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.EmailAddress;
+import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.Username;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,18 +14,18 @@ import java.util.UUID;
 @Repository
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
     /**
-     * Find a Profile by Email Address
+     * Find a Profile by Username
      *
-     * @param emailAddress The Email Address
-     * @return A {@link Profile} instance if the email address is valid, otherwise empty
+     * @param username The Username
+     * @return A {@link Profile} instance if the username is valid, otherwise empty
      */
-    Optional<Profile> findByEmailAddress(EmailAddress emailAddress);
+    Optional<Profile> findByUsername(Username username);
 
     /**
-     * Check if a Profile exists by Email Address
+     * Check if a Profile exists by Username
      *
-     * @param emailAddress The Email Address
-     * @return True if the email address exists, otherwise false
+     * @param username The Username
+     * @return True if the username exists, otherwise false
      */
-    boolean existsByEmailAddress(EmailAddress emailAddress);
+    boolean existsByUsername(Username username);
 }

@@ -2,7 +2,7 @@ package com.levelupjourney.microserviceiam.profiles.domain.services;
 
 import com.levelupjourney.microserviceiam.profiles.domain.model.aggregates.Profile;
 import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetAllProfilesQuery;
-import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetProfileByEmailQuery;
+import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetProfileByUsernameQuery;
 import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetProfileByIdQuery;
 
 import java.util.List;
@@ -21,12 +21,12 @@ public interface ProfileQueryService {
     Optional<Profile> handle(GetProfileByIdQuery query);
 
     /**
-     * Handle Get Profile By Email Query
+     * Handle Get Profile By Username Query
      *
-     * @param query The {@link GetProfileByEmailQuery} Query
+     * @param query The {@link GetProfileByUsernameQuery} Query
      * @return A {@link Profile} instance if the query is valid, otherwise empty
      */
-    Optional<Profile> handle(GetProfileByEmailQuery query);
+    Optional<Profile> handle(GetProfileByUsernameQuery query);
 
     /**
      * Handle Get All Profiles Query

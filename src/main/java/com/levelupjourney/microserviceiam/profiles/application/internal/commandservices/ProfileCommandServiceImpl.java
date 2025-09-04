@@ -2,7 +2,7 @@ package com.levelupjourney.microserviceiam.profiles.application.internal.command
 
 import com.levelupjourney.microserviceiam.profiles.domain.model.aggregates.Profile;
 import com.levelupjourney.microserviceiam.profiles.domain.model.commands.CreateProfileCommand;
-import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.EmailAddress;
+import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.Username;
 import com.levelupjourney.microserviceiam.profiles.domain.services.ProfileCommandService;
 import com.levelupjourney.microserviceiam.profiles.infrastructure.persistence.jpa.repositories.ProfileRepository;
 import org.springframework.stereotype.Service;
@@ -28,9 +28,9 @@ public class ProfileCommandServiceImpl implements ProfileCommandService {
     // inherited javadoc
     @Override
     public Optional<Profile> handle(CreateProfileCommand command) {
-        var emailAddress = new EmailAddress(command.email());
-        if (profileRepository.existsByEmailAddress(emailAddress)) {
-            throw new IllegalArgumentException("Profile with email address already exists");
+        var username = new Username(command.username());
+        if (profileRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("Profile with username already exists");
         }
         var profile = new Profile(command);
         profileRepository.save(profile);

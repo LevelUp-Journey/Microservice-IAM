@@ -10,7 +10,7 @@ public interface ProfilesContextFacade {
      * Create a new profile
      * @param firstName The first name
      * @param lastName The last name
-     * @param email The email address
+     * @param username The username
      * @param street The street address
      * @param number The street number
      * @param city The city
@@ -19,12 +19,12 @@ public interface ProfilesContextFacade {
      * @param country The country
      * @return The profile ID
      */
-    UUID createProfile(String firstName, String lastName, String email, String street, String number, String city, String state, String postalCode, String country);
+    UUID createProfile(String firstName, String lastName, String username, String street, String number, String city, String state, String postalCode, String country);
 
     /**
-     * Fetch a profile ID by email
-     * @param email The email address
+     * Fetch a profile ID by username
+     * @param username The username
      * @return The profile ID
      */
-    UUID fetchProfileIdByEmail(String email);
+    UUID fetchProfileIdByUsername(String username);
 }

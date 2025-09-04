@@ -72,23 +72,22 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     private String handleOAuth2User(OAuth2User oauth2User) {
         Map<String, Object> attributes = oauth2User.getAttributes();
-        String email = extractEmail(attributes);
-        String username = extractUsername(attributes);
-
-        if (email == null || username == null) {
-            throw new RuntimeException("Email or username not found in OAuth2 user attributes");
+        String email_address = extractemail_address(attributes);
+        
+        if (email_address == null) {
+            throw new RuntimeException("email_address not found in OAuth2 user attributes");
         }
 
-        Optional<User> existingUser = userQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByUsernameQuery(username));
+        Optional<User> existingUser = userQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery(email_address));
         
         User user;
         if (existingUser.isPresent()) {
             user = existingUser.get();
         } else {
             Role userRole = roleQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetRoleByNameQuery(Roles.ROLE_STUDENT))
-                    .orElseThrow(() -> new RuntimeException("User role not found"));
+                    .orElseThrow(() -> new RuntimeException("Student role not found"));
             
-            SignUpCommand signUpCommand = new SignUpCommand(username, "oauth2_user_" + System.currentTimeMillis(), List.of(userRole));
+            SignUpCommand signUpCommand = new SignUpCommand(email_address, "oauth2_user_" + System.currentTimeMillis(), List.of(userRole));
             Optional<User> newUser = userCommandService.handle(signUpCommand);
             
             if (newUser.isEmpty()) {
@@ -97,20 +96,22 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             user = newUser.get();
         }
 
-        return tokenService.generateToken(user.getUsername());
+        return tokenService.generateToken(user.getEmail_address());
     }
 
-    private String extractEmail(Map<String, Object> attributes) {
-        return (String) attributes.get("email");
-    }
-
-    private String extractUsername(Map<String, Object> attributes) {
-        if (attributes.containsKey("login")) {
-            return (String) attributes.get("login");
-        }
-        if (attributes.containsKey("email")) {
+    private String extractemail_address(Map<String, Object> attributes) {
+        // Google uses "email"
+        if (attributes.containsKey("email") && attributes.get("email") != null) {
             return (String) attributes.get("email");
         }
+        
+        // GitHub might not provide email in basic user info, use login as identifier
+        if (attributes.containsKey("login")) {
+            String login = (String) attributes.get("login");
+            // Use GitHub login as email identifier
+            return login + "@github.oauth";
+        }
+        
         return null;
     }
 

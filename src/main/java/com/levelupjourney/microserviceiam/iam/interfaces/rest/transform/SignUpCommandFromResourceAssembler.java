@@ -9,6 +9,6 @@ import java.util.ArrayList;
 public class SignUpCommandFromResourceAssembler {
     public static SignUpCommand toCommandFromResource(SignUpResource resource) {
         var roles = Role.validateRoleSet(new ArrayList<Role>());
-        return new SignUpCommand(resource.username(), resource.password(), roles);
+        return new SignUpCommand(resource.email_address(), resource.password(), roles);
     }
 }

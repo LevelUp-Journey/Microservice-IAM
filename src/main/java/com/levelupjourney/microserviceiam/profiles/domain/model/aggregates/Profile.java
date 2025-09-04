@@ -1,7 +1,7 @@
 package com.levelupjourney.microserviceiam.profiles.domain.model.aggregates;
 
 import com.levelupjourney.microserviceiam.profiles.domain.model.commands.CreateProfileCommand;
-import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.EmailAddress;
+import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.Username;
 import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.PersonName;
 import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.StreetAddress;
 import com.levelupjourney.microserviceiam.shared.domain.model.aggregates.AuditableAbstractAggregateRoot;
@@ -14,8 +14,8 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
 
     @Embedded
     @AttributeOverrides({
-            @AttributeOverride(name = "address", column = @Column(name = "email_address"))})
-    private EmailAddress emailAddress;
+            @AttributeOverride(name = "username", column = @Column(name = "username"))})
+    private Username username;
 
     @Embedded
     @AttributeOverrides({
@@ -26,9 +26,9 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
             @AttributeOverride(name = "country", column = @Column(name = "street_address_country"))})
     private StreetAddress streetAddress;
 
-    public Profile(String firstName, String lastName, String email, String street, String number, String city, String state, String postalCode, String country) {
+    public Profile(String firstName, String lastName, String username, String street, String number, String city, String state, String postalCode, String country) {
         this.name = new PersonName(firstName, lastName);
-        this.emailAddress = new EmailAddress(email);
+        this.username = new Username(username);
         this.streetAddress = new StreetAddress(street, number, city, state, postalCode, country);
     }
 
@@ -40,7 +40,7 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
         this(
                 command.firstName(),
                 command.lastName(),
-                command.email(),
+                command.username(),
                 command.street(),
                 command.number(),
                 command.city(),
@@ -54,8 +54,8 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
         return name.getFullName();
     }
 
-    public String getEmailAddress() {
-        return emailAddress.address();
+    public String getUsername() {
+        return username.username();
     }
 
     public String getStreetAddress() {
@@ -66,8 +66,8 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
       this.name = new PersonName(firstName, lastName);
     }
 
-    public void updateEmailAddress(String email) {
-        this.emailAddress = new EmailAddress(email);
+    public void updateUsername(String username) {
+        this.username = new Username(username);
     }
 
     public void updateStreetAddress(String street, String number, String city, String state, String postalCode, String country) {
