@@ -29,11 +29,11 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
         // Default constructor for JPA
     }
 
-    public Profile(CreateProfileCommand command) {
+    public Profile(CreateProfileCommand command, String username) {
         this(
                 command.firstName(),
                 command.lastName(),
-                command.username(),
+                username,
                 command.profileUrl()
         );
     }

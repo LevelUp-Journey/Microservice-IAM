@@ -8,13 +8,12 @@ import java.util.UUID;
 public interface ProfilesContextFacade {
     /**
      * Create a new profile
-     * @param firstName The first name
-     * @param lastName The last name
-     * @param username The username
-     * @param profileUrl The profile URL
+     * @param firstName The first name (can be null for local registration)
+     * @param lastName The last name (can be null for local registration)
+     * @param profileUrl The profile URL (can be null for local registration)
      * @return The profile ID
      */
-    UUID createProfile(String firstName, String lastName, String username, String profileUrl);
+    UUID createProfile(String firstName, String lastName, String profileUrl);
 
     /**
      * Fetch a profile ID by username
