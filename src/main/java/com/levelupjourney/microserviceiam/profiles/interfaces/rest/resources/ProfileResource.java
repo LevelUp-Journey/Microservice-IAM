@@ -8,6 +8,6 @@ import java.util.UUID;
 public record ProfileResource(
         UUID id,
         String fullName,
-        String email,
+        String username,
         String streetAddress) {
 }

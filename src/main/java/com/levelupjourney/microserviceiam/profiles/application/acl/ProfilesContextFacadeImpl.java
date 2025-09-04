@@ -1,8 +1,8 @@
 package com.levelupjourney.microserviceiam.profiles.application.acl;
 
 import com.levelupjourney.microserviceiam.profiles.domain.model.commands.CreateProfileCommand;
-import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetProfileByEmailQuery;
-import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.EmailAddress;
+import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetProfileByemail_addressQuery;
+import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.Username;
 import com.levelupjourney.microserviceiam.profiles.domain.services.ProfileCommandService;
 import com.levelupjourney.microserviceiam.profiles.domain.services.ProfileQueryService;
 import com.levelupjourney.microserviceiam.profiles.interfaces.acl.ProfilesContextFacade;
@@ -23,7 +23,7 @@ public class ProfilesContextFacadeImpl implements ProfilesContextFacade {
     public UUID createProfile(
             String firstName,
             String lastName,
-            String email,
+            String username,
             String street,
             String number,
             String city,
@@ -33,7 +33,7 @@ public class ProfilesContextFacadeImpl implements ProfilesContextFacade {
         var createProfileCommand = new CreateProfileCommand(
                 firstName,
                 lastName,
-                email,
+                username,
                 street,
                 number,
                 city,
@@ -44,9 +44,9 @@ public class ProfilesContextFacadeImpl implements ProfilesContextFacade {
         return profile.isEmpty() ? null : profile.get().getId();
     }
 
-    public UUID fetchProfileIdByEmail(String email) {
-        var getProfileByEmailQuery = new GetProfileByEmailQuery(new EmailAddress(email));
-        var profile = profileQueryService.handle(getProfileByEmailQuery);
+    public UUID fetchProfileIdByUsername(String username) {
+        var getProfileByemail_addressQuery = new GetProfileByemail_addressQuery(new Username(username));
+        var profile = profileQueryService.handle(getProfileByemail_addressQuery);
         return profile.isEmpty() ? null : profile.get().getId();
     }
 

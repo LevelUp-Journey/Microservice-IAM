@@ -15,17 +15,17 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, UUID>
 {
     /**
-     * This method is responsible for finding the user by username.
-     * @param username The username.
+     * This method is responsible for finding the user by email_address.
+     * @param email_address The email_address.
      * @return The user object.
      */
-    Optional<User> findByUsername(String username);
+    Optional<User> findByEmail_address(String email_address);
 
     /**
-     * This method is responsible for checking if the user exists by username.
-     * @param username The username.
+     * This method is responsible for checking if the user exists by email_address.
+     * @param email_address The email_address.
      * @return True if the user exists, false otherwise.
      */
-    boolean existsByUsername(String username);
+    boolean existsByEmail_address(String email_address);
 
 }
