@@ -10,7 +10,7 @@ import java.security.SecureRandom;
 public class UsernameGeneratorServiceImpl implements UsernameGeneratorService {
     private final ProfileRepository profileRepository;
     private final SecureRandom random;
-    private static final String USERNAME_PREFIX = "Username";
+    private static final String USERNAME_PREFIX = "USER";
     private static final int DIGITS_COUNT = 9;
 
     public UsernameGeneratorServiceImpl(ProfileRepository profileRepository) {

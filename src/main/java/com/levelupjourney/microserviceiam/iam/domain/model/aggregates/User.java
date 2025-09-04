@@ -1,10 +1,10 @@
 package com.levelupjourney.microserviceiam.iam.domain.model.aggregates;
 
 import com.levelupjourney.microserviceiam.iam.domain.model.entities.Role;
+import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.EmailAddress;
+import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.Password;
 import com.levelupjourney.microserviceiam.shared.domain.model.aggregates.AuditableAbstractAggregateRoot;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -24,14 +24,15 @@ import java.util.Set;
 @Table(name = "users")
 public class User extends AuditableAbstractAggregateRoot<User> {
 
-    @NotBlank
-    @Size(max = 50)
-    @Column(unique = true)
-    private String email_address;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "email", column = @Column(name = "email_address", unique = true))})
+    private EmailAddress emailAddress;
 
-    @NotBlank
-    @Size(max = 120)
-    private String password;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "password", column = @Column(name = "password"))})
+    private Password userPassword;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(	name = "user_roles",
@@ -42,9 +43,10 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     public User() {
         this.roles = new HashSet<>();
     }
+    
     public User(String email_address, String password) {
-        this.email_address = email_address;
-        this.password = password;
+        this.emailAddress = new EmailAddress(email_address);
+        this.userPassword = new Password(password);
         this.roles = new HashSet<>();
     }
 
@@ -75,19 +77,51 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     }
 
     /**
-     * Get username (for compatibility - returns email_address)
-     * @return the email_address as username
+     * Get email address (for compatibility)
+     * @return the normalized email address
      */
     public String getEmail_address() {
-        return this.email_address;
+        return this.emailAddress != null ? this.emailAddress.normalized() : null;
     }
 
     /**
-     * Set username (for compatibility - sets email_address)
-     * @param email_address the email_address (email_address)
+     * Set email address (for compatibility)
+     * @param email_address the email address
      */
     public void setEmail_address(String email_address) {
-        this.email_address = email_address;
+        this.emailAddress = new EmailAddress(email_address);
+    }
+
+    /**
+     * Get password (for authentication)
+     * @return the password
+     */
+    public String getPassword() {
+        return this.userPassword != null ? this.userPassword.password() : null;
+    }
+
+    /**
+     * Set password
+     * @param password the new password
+     */
+    public void setPassword(String password) {
+        this.userPassword = new Password(password);
+    }
+
+    /**
+     * Get email address value object
+     * @return EmailAddress value object
+     */
+    public EmailAddress getEmailAddress() {
+        return this.emailAddress;
+    }
+
+    /**
+     * Get password strength score
+     * @return password strength score (1-5)
+     */
+    public int getPasswordStrength() {
+        return this.userPassword != null ? this.userPassword.getStrengthScore() : 0;
     }
 
 }

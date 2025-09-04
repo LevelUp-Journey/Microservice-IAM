@@ -3,6 +3,7 @@ package com.levelupjourney.microserviceiam.profiles.domain.model.aggregates;
 import com.levelupjourney.microserviceiam.profiles.domain.model.commands.CreateProfileCommand;
 import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.Username;
 import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.PersonName;
+import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.ProfileUrl;
 import com.levelupjourney.microserviceiam.shared.domain.model.aggregates.AuditableAbstractAggregateRoot;
 import jakarta.persistence.*;
 
@@ -16,13 +17,15 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
             @AttributeOverride(name = "username", column = @Column(name = "username"))})
     private Username username;
 
-    @Column(name = "profile_url")
-    private String profileUrl;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "url", column = @Column(name = "profile_url"))})
+    private ProfileUrl profileUrl;
 
     public Profile(String firstName, String lastName, String username, String profileUrl) {
         this.name = new PersonName(firstName, lastName);
         this.username = new Username(username);
-        this.profileUrl = profileUrl;
+        this.profileUrl = new ProfileUrl(profileUrl);
     }
 
     public Profile() {
@@ -55,7 +58,7 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
     }
 
     public String getProfileUrl() {
-        return profileUrl;
+        return profileUrl != null ? profileUrl.value() : null;
     }
 
     public void updateName(String firstName, String lastName) {
@@ -63,10 +66,13 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
     }
 
     public void updateUsername(String username) {
+        // Username constructor automatically detects if it's:
+        // - Generated format (USER + 9 digits): applies strict validation
+        // - Edited format (other): applies flexible validation (3-50 chars, alphanumeric + _.- only)
         this.username = new Username(username);
     }
 
     public void updateProfileUrl(String profileUrl) {
-        this.profileUrl = profileUrl;
+        this.profileUrl = new ProfileUrl(profileUrl);
     }
 }

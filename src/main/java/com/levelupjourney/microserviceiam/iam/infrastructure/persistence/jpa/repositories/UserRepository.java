@@ -21,7 +21,7 @@ public interface UserRepository extends JpaRepository<User, UUID>
      * @param email_address The email_address.
      * @return The user object.
      */
-    @Query("SELECT u FROM User u WHERE u.email_address = :email_address")
+    @Query("SELECT u FROM User u WHERE u.emailAddress.email = :email_address")
     Optional<User> findByEmail_address(@Param("email_address") String email_address);
 
     /**
@@ -29,7 +29,7 @@ public interface UserRepository extends JpaRepository<User, UUID>
      * @param email_address The email_address.
      * @return True if the user exists, false otherwise.
      */
-    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN TRUE ELSE FALSE END FROM User u WHERE u.email_address = :email_address")
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN TRUE ELSE FALSE END FROM User u WHERE u.emailAddress.email = :email_address")
     boolean existsByEmail_address(@Param("email_address") String email_address);
 
 }
