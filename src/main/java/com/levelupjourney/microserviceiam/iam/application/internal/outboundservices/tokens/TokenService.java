@@ -11,14 +11,14 @@ public interface TokenService {
      * @param username the username
      * @return String the token
      */
-    String generateToken(String username);
+    String generateToken(String email_address);
 
     /**
-     * Extract the username from a token
+     * Extract the email_address from a token
      * @param token the token
-     * @return String the username
+     * @return String the email_address
      */
-    String getUsernameFromToken(String token);
+    String getEmailAddressFromToken(String token);
 
     /**
      * Validate a token

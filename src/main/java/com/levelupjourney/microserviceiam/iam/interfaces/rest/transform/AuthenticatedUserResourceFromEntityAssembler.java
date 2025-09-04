@@ -5,6 +5,6 @@ import com.levelupjourney.microserviceiam.iam.interfaces.rest.resources.Authenti
 
 public class AuthenticatedUserResourceFromEntityAssembler {
     public static AuthenticatedUserResource toResourceFromEntity(User user, String token) {
-        return new AuthenticatedUserResource(user.getId(), user.getUsername(), token);
+        return new AuthenticatedUserResource(user.getId(), user.getEmail_address(), token);
     }
 }

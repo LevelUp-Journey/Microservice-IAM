@@ -2,7 +2,7 @@ package com.levelupjourney.microserviceiam.profiles.application.internal.queryse
 
 import com.levelupjourney.microserviceiam.profiles.domain.model.aggregates.Profile;
 import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetAllProfilesQuery;
-import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetProfileByemail_addressQuery;
+import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetProfileByUsernameQuery;
 import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetProfileByIdQuery;
 import com.levelupjourney.microserviceiam.profiles.domain.services.ProfileQueryService;
 import com.levelupjourney.microserviceiam.profiles.infrastructure.persistence.jpa.repositories.ProfileRepository;
@@ -35,7 +35,7 @@ public class ProfileQueryServiceImpl implements ProfileQueryService {
 
     // inherited javadoc
     @Override
-    public Optional<Profile> handle(GetProfileByemail_addressQuery query) {
+    public Optional<Profile> handle(GetProfileByUsernameQuery query) {
         return profileRepository.findByUsername(query.username());
     }
 

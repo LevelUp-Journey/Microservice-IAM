@@ -50,7 +50,7 @@ public class UserQueryServiceImpl implements UserQueryService {
     }
 
     /**
-     * This method is used to handle {@link GetUserByEmail_addressQuery} query.
+     * Handle {@link GetUserByEmail_addressQuery} query.
      * @param query {@link GetUserByEmail_addressQuery} instance.
      * @return {@link Optional} of {@link User} instance.
      * @see GetUserByEmail_addressQuery

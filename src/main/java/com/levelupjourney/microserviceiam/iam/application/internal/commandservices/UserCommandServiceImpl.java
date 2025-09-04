@@ -42,18 +42,18 @@ public class UserCommandServiceImpl implements UserCommandService {
      * <p>
      *     This method handles the {@link SignInCommand} command and returns the user and the token.
      * </p>
-     * @param command the sign-in command containing the username and password
-     * @return and optional containing the user matching the username and the generated token
+     * @param command the sign-in command containing the email_address and password
+     * @return and optional containing the user matching the email_address and the generated token
      * @throws RuntimeException if the user is not found or the password is invalid
      */
     @Override
     public Optional<ImmutablePair<User, String>> handle(SignInCommand command) {
-        var user = userRepository.findByEmail_address(command.username());
+        var user = userRepository.findByEmail_address(command.email_address());
         if (user.isEmpty())
             throw new RuntimeException("User not found");
         if (!hashingService.matches(command.password(), user.get().getPassword()))
             throw new RuntimeException("Invalid password");
-        var token = tokenService.generateToken(user.get().getUsername());
+        var token = tokenService.generateToken(user.get().getEmail_address());
         return Optional.of(ImmutablePair.of(user.get(), token));
     }
 
@@ -67,12 +67,12 @@ public class UserCommandServiceImpl implements UserCommandService {
      */
     @Override
     public Optional<User> handle(SignUpCommand command) {
-        if (userRepository.existsByEmail_address(command.username()))
-            throw new RuntimeException("Username already exists");
+        if (userRepository.existsByEmail_address(command.email_address()))
+            throw new RuntimeException("Email address already exists");
         var validatedRoles = Role.validateRoleSet(command.roles());
         var roles = validatedRoles.stream().map(role -> roleRepository.findByName(role.getName()).orElseThrow(() -> new RuntimeException("Role name not found"))).toList();
-        var user = new User(command.username(), hashingService.encode(command.password()), roles);
+        var user = new User(command.email_address(), hashingService.encode(command.password()), roles);
         userRepository.save(user);
-        return userRepository.findByEmail_address(command.username());
+        return userRepository.findByEmail_address(command.email_address());
     }
 }

@@ -115,11 +115,11 @@ public class AuthenticationController {
             String token = authHeader.substring(7);
             try {
                 if (tokenService.validateToken(token)) {
-                    String username = tokenService.getUsernameFromToken(token);
+                    String email_address = tokenService.getEmailAddressFromToken(token);
                     return ResponseEntity.ok(Map.of(
                         "valid", true,
                         "message", "Token is valid",
-                        "username", username
+                        "email_address", email_address
                     ));
                 }
             } catch (Exception e) {

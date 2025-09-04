@@ -1,7 +1,7 @@
 package com.levelupjourney.microserviceiam.profiles.application.acl;
 
 import com.levelupjourney.microserviceiam.profiles.domain.model.commands.CreateProfileCommand;
-import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetProfileByemail_addressQuery;
+import com.levelupjourney.microserviceiam.profiles.domain.model.queries.GetProfileByUsernameQuery;
 import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.Username;
 import com.levelupjourney.microserviceiam.profiles.domain.services.ProfileCommandService;
 import com.levelupjourney.microserviceiam.profiles.domain.services.ProfileQueryService;
@@ -45,8 +45,8 @@ public class ProfilesContextFacadeImpl implements ProfilesContextFacade {
     }
 
     public UUID fetchProfileIdByUsername(String username) {
-        var getProfileByemail_addressQuery = new GetProfileByemail_addressQuery(new Username(username));
-        var profile = profileQueryService.handle(getProfileByemail_addressQuery);
+        var getProfileByUsernameQuery = new GetProfileByUsernameQuery(new Username(username));
+        var profile = profileQueryService.handle(getProfileByUsernameQuery);
         return profile.isEmpty() ? null : profile.get().getId();
     }
 

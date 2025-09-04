@@ -79,7 +79,7 @@ public class IamContextFacade {
         var getUserByIdQuery = new GetUserByIdQuery(userId);
         var result = userQueryService.handle(getUserByIdQuery);
         if (result.isEmpty()) return Strings.EMPTY;
-        return result.get().getUsername();
+        return result.get().getEmail_address();
     }
 
 }

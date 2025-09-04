@@ -78,16 +78,16 @@ public class User extends AuditableAbstractAggregateRoot<User> {
      * Get username (for compatibility - returns email_address)
      * @return the email_address as username
      */
-    public String getUsername() {
+    public String getEmail_address() {
         return this.email_address;
     }
 
     /**
      * Set username (for compatibility - sets email_address)
-     * @param username the username (email_address)
+     * @param email_address the email_address (email_address)
      */
-    public void setUsername(String username) {
-        this.email_address = username;
+    public void setEmail_address(String email_address) {
+        this.email_address = email_address;
     }
 
 }

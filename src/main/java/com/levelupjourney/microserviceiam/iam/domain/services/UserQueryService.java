@@ -30,7 +30,7 @@ public interface UserQueryService {
     Optional<User> handle(GetUserByIdQuery query);
 
     /**
-     * Handle get user by username query
+     * Handle get user by email_address query
      * @param query the {@link GetUserByEmail_addressQuery} query
      * @return an {@link Optional} of {@link User} entity
      */

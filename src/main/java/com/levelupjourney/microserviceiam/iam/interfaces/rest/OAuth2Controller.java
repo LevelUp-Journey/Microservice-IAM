@@ -96,7 +96,7 @@ public class OAuth2Controller {
             user = newUser.get();
         }
 
-        return tokenService.generateToken(user.getUsername());
+        return tokenService.generateToken(user.getEmail_address());
     }
 
     private String extractemail_address(Map<String, Object> attributes) {

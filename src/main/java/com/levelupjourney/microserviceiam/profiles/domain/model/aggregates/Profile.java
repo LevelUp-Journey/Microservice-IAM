@@ -54,10 +54,6 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
         return name.getFullName();
     }
 
-    public String getemail_addressAddress() {
-        return username.username();
-    }
-
     public String getUsername() {
         return username.username();
     }
@@ -68,10 +64,6 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
 
     public void updateName(String firstName, String lastName) {
       this.name = new PersonName(firstName, lastName);
-    }
-
-    public void updateemail_addressAddress(String email_address) {
-        this.username = new Username(email_address);
     }
 
     public void updateUsername(String username) {

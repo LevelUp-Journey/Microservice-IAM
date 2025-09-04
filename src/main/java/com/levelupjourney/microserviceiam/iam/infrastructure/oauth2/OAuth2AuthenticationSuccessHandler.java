@@ -72,10 +72,10 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     private String handleOAuth2User(OAuth2User oauth2User) {
         Map<String, Object> attributes = oauth2User.getAttributes();
-        String email_address = extractEmail(attributes);
+        String email_address = extractemail_address(attributes);
         
         if (email_address == null) {
-            throw new RuntimeException("Email not found in OAuth2 user attributes");
+            throw new RuntimeException("email_address not found in OAuth2 user attributes");
         }
 
         Optional<User> existingUser = userQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery(email_address));
@@ -96,19 +96,22 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             user = newUser.get();
         }
 
-        return tokenService.generateToken(user.getUsername());
+        return tokenService.generateToken(user.getEmail_address());
     }
 
-    private String extractEmail(Map<String, Object> attributes) {
+    private String extractemail_address(Map<String, Object> attributes) {
         // Google uses "email"
-        if (attributes.containsKey("email")) {
+        if (attributes.containsKey("email") && attributes.get("email") != null) {
             return (String) attributes.get("email");
         }
-        // GitHub might use "email" as well
+        
+        // GitHub might not provide email in basic user info, use login as identifier
         if (attributes.containsKey("login")) {
-            // For GitHub, we might need to construct email or use login as fallback
-            return (String) attributes.get("login") + "@github.local";
+            String login = (String) attributes.get("login");
+            // Use GitHub login as email identifier
+            return login + "@github.oauth";
         }
+        
         return null;
     }
 

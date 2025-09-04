@@ -22,7 +22,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     /**
      * This method is responsible for loading the user details from the database.
-     * @param username The username (email address).
+     * @param username The username (email_address address).
      * @return The UserDetails object.
      * @throws UsernameNotFoundException If the user is not found.
      */
