@@ -114,6 +114,7 @@ public class WebSecurityConfiguration {
                         .requestMatchers(
                                 "/api/v1/authentication/**",
                                 "/oauth2/**",
+                                "/api/v1/iam/health/**",
                                 "/login/oauth2/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html",
