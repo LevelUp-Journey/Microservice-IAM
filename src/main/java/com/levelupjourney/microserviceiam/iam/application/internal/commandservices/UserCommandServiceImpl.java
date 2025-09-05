@@ -6,6 +6,7 @@ import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignInCommand;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignUpCommand;
 import com.levelupjourney.microserviceiam.iam.domain.model.entities.Role;
+import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.TokenPair;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.iam.infrastructure.persistence.jpa.repositories.RoleRepository;
 import com.levelupjourney.microserviceiam.iam.infrastructure.persistence.jpa.repositories.UserRepository;
@@ -40,21 +41,23 @@ public class UserCommandServiceImpl implements UserCommandService {
     /**
      * Handle the sign-in command
      * <p>
-     *     This method handles the {@link SignInCommand} command and returns the user and the token.
+     *     This method handles the {@link SignInCommand} command and returns the user and the token pair.
      * </p>
      * @param command the sign-in command containing the email_address and password
-     * @return and optional containing the user matching the email_address and the generated token
+     * @return and optional containing the user matching the email_address and the generated token pair
      * @throws RuntimeException if the user is not found or the password is invalid
      */
     @Override
-    public Optional<ImmutablePair<User, String>> handle(SignInCommand command) {
+    public Optional<ImmutablePair<User, TokenPair>> handle(SignInCommand command) {
         var user = userRepository.findByEmail_address(command.email_address());
         if (user.isEmpty())
             throw new RuntimeException("User not found");
         if (!hashingService.matches(command.password(), user.get().getPassword()))
             throw new RuntimeException("Invalid password");
-        var token = tokenService.generateToken(user.get().getEmail_address());
-        return Optional.of(ImmutablePair.of(user.get(), token));
+        var accessToken = tokenService.generateToken(user.get().getEmail_address());
+        var refreshToken = tokenService.generateRefreshToken(user.get().getEmail_address());
+        var tokenPair = new TokenPair(accessToken, refreshToken);
+        return Optional.of(ImmutablePair.of(user.get(), tokenPair));
     }
 
     /**

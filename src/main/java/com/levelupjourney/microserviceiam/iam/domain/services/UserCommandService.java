@@ -3,6 +3,7 @@ package com.levelupjourney.microserviceiam.iam.domain.services;
 import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignInCommand;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignUpCommand;
+import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.TokenPair;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import java.util.Optional;
@@ -17,9 +18,9 @@ public interface UserCommandService {
     /**
      * Handle sign in command
      * @param command the {@link SignInCommand} command
-     * @return an {@link Optional} of {@link ImmutablePair} of {@link User} and {@link String}
+     * @return an {@link Optional} of {@link ImmutablePair} of {@link User} and {@link TokenPair}
      */
-    Optional<ImmutablePair<User, String>> handle(SignInCommand command);
+    Optional<ImmutablePair<User, TokenPair>> handle(SignInCommand command);
 
     /**
      * Handle sign up command

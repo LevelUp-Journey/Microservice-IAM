@@ -14,6 +14,13 @@ public interface TokenService {
     String generateToken(String email_address);
 
     /**
+     * Generate a refresh token for a given email address
+     * @param email_address the email address
+     * @return String the refresh token
+     */
+    String generateRefreshToken(String email_address);
+
+    /**
      * Extract the email_address from a token
      * @param token the token
      * @return String the email_address
@@ -26,4 +33,18 @@ public interface TokenService {
      * @return boolean true if the token is valid, false otherwise
      */
     boolean validateToken(String token);
+
+    /**
+     * Validate a refresh token
+     * @param refreshToken the refresh token
+     * @return boolean true if the refresh token is valid, false otherwise
+     */
+    boolean validateRefreshToken(String refreshToken);
+
+    /**
+     * Extract the email_address from a refresh token
+     * @param refreshToken the refresh token
+     * @return String the email_address
+     */
+    String getEmailAddressFromRefreshToken(String refreshToken);
 }

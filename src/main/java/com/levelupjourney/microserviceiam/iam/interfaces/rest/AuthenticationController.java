@@ -1,8 +1,12 @@
 package com.levelupjourney.microserviceiam.iam.interfaces.rest;
 
+import com.levelupjourney.microserviceiam.iam.application.internal.outboundservices.tokens.TokenService;
+import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
+import com.levelupjourney.microserviceiam.iam.domain.services.UserQueryService;
 import com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt.BearerTokenService;
 import com.levelupjourney.microserviceiam.iam.interfaces.rest.resources.AuthenticatedUserResource;
+import com.levelupjourney.microserviceiam.iam.interfaces.rest.resources.RefreshTokenResource;
 import com.levelupjourney.microserviceiam.iam.interfaces.rest.resources.SignInResource;
 import com.levelupjourney.microserviceiam.iam.interfaces.rest.resources.SignUpResource;
 import com.levelupjourney.microserviceiam.iam.interfaces.rest.resources.UserResource;
@@ -38,11 +42,16 @@ import java.util.Map;
 @Tag(name = "Authentication", description = "Available Authentication Endpoints")
 public class AuthenticationController {
     private final UserCommandService userCommandService;
+    private final UserQueryService userQueryService;
     private final BearerTokenService tokenService;
+    private final TokenService refreshTokenService;
 
-    public AuthenticationController(UserCommandService userCommandService, BearerTokenService tokenService) {
+    public AuthenticationController(UserCommandService userCommandService, UserQueryService userQueryService, 
+                                   BearerTokenService tokenService, TokenService refreshTokenService) {
         this.userCommandService = userCommandService;
+        this.userQueryService = userQueryService;
         this.tokenService = tokenService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     /**
@@ -61,7 +70,9 @@ public class AuthenticationController {
         if (authenticatedUser.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        var authenticatedUserResource = AuthenticatedUserResourceFromEntityAssembler.toResourceFromEntity(authenticatedUser.get().getLeft(), authenticatedUser.get().getRight());
+        var user = authenticatedUser.get().getLeft();
+        var tokenPair = authenticatedUser.get().getRight();
+        var authenticatedUserResource = AuthenticatedUserResourceFromEntityAssembler.toResourceFromEntity(user, tokenPair.accessToken(), tokenPair.refreshToken());
         return ResponseEntity.ok(authenticatedUserResource);
     }
 
@@ -86,18 +97,6 @@ public class AuthenticationController {
 
     }
 
-    /**
-     * Handles the logout request.
-     * @param request the HTTP request.
-     * @return the logout response.
-     */
-    @PostMapping("/logout")
-    @Operation(summary = "Logout", description = "Logout current user session.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "User logged out successfully.")})
-    public ResponseEntity<Map<String, String>> logout(HttpServletRequest request) {
-        return ResponseEntity.ok(Map.of("message", "User logged out successfully"));
-    }
 
     /**
      * Validates the current token/session.
@@ -133,5 +132,49 @@ public class AuthenticationController {
             "valid", false,
             "message", "Invalid or missing token"
         ));
+    }
+
+    /**
+     * Handles the refresh token request.
+     * @param refreshTokenResource the refresh token request body.
+     * @return the new access token and refresh token.
+     */
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh Token", description = "Generate new access token using refresh token.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token refreshed successfully."),
+            @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token.")})
+    public ResponseEntity<Map<String, String>> refreshToken(@RequestBody RefreshTokenResource refreshTokenResource) {
+        try {
+            if (!refreshTokenService.validateRefreshToken(refreshTokenResource.refreshToken())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "message", "Invalid or expired refresh token"
+                ));
+            }
+            
+            String emailAddress = refreshTokenService.getEmailAddressFromRefreshToken(refreshTokenResource.refreshToken());
+            var getUserQuery = new GetUserByEmail_addressQuery(emailAddress);
+            var user = userQueryService.handle(getUserQuery);
+            
+            if (user.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "message", "User not found"
+                ));
+            }
+            
+            String newAccessToken = refreshTokenService.generateToken(emailAddress);
+            String newRefreshToken = refreshTokenService.generateRefreshToken(emailAddress);
+            
+            return ResponseEntity.ok(Map.of(
+                "accessToken", newAccessToken,
+                "refreshToken", newRefreshToken,
+                "message", "Token refreshed successfully"
+            ));
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                "message", "Invalid refresh token: " + e.getMessage()
+            ));
+        }
     }
 }

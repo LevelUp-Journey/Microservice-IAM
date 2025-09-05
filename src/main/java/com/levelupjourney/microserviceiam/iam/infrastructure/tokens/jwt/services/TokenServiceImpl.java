@@ -33,11 +33,14 @@ public class TokenServiceImpl implements BearerTokenService {
     private static final int TOKEN_BEGIN_INDEX = 7;
 
 
-    @Value("${authorization.jwt.secret}")
+    @Value("${app.jwt.secret}")
     private String secret;
 
-    @Value("${authorization.jwt.expiration.days}")
-    private int expirationDays;
+    @Value("${app.jwt.expiration-hours}")
+    private int expirationHours;
+
+    @Value("${app.jwt.refresh-expiration-days}")
+    private int refreshExpirationDays;
 
     /**
      * This method generates a JWT token from an authentication object
@@ -68,7 +71,7 @@ public class TokenServiceImpl implements BearerTokenService {
      */
     private String buildTokenWithDefaultParameters(String email_address) {
         var issuedAt = new Date();
-        var expiration = DateUtils.addDays(issuedAt, expirationDays);
+        var expiration = DateUtils.addHours(issuedAt, expirationHours);
         var key = getSigningKey();
         return Jwts.builder()
                 .subject(email_address)
@@ -76,6 +79,61 @@ public class TokenServiceImpl implements BearerTokenService {
                 .expiration(expiration)
                 .signWith(key)
                 .compact();
+    }
+
+    @Override
+    public String generateRefreshToken(String email_address) {
+        var issuedAt = new Date();
+        var expiration = DateUtils.addDays(issuedAt, refreshExpirationDays);
+        var key = getSigningKey();
+        return Jwts.builder()
+                .subject(email_address)
+                .claim("type", "refresh")
+                .issuedAt(issuedAt)
+                .expiration(expiration)
+                .signWith(key)
+                .compact();
+    }
+
+    @Override
+    public boolean validateRefreshToken(String token) {
+        try {
+            Claims claims = Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+            String tokenType = claims.get("type", String.class);
+            if (!"refresh".equals(tokenType)) {
+                LOGGER.error("Token is not a refresh token");
+                return false;
+            }
+            LOGGER.info("Refresh token is valid");
+            return true;
+        } catch (SignatureException e) {
+            LOGGER.error("Invalid JSON Web Token Signature: {}", e.getMessage());
+        } catch (MalformedJwtException e) {
+            LOGGER.error("Invalid JSON Web Token: {}", e.getMessage());
+        } catch (ExpiredJwtException e) {
+            LOGGER.error("JSON Web Token is expired: {}", e.getMessage());
+        } catch (UnsupportedJwtException e) {
+            LOGGER.error("JSON Web Token is unsupported: {}", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            LOGGER.error("JSON Web Token claims string is empty: {}", e.getMessage());
+        }
+        return false;
+    }
+
+    @Override
+    public String getEmailAddressFromRefreshToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            String tokenType = claims.get("type", String.class);
+            if (!"refresh".equals(tokenType)) {
+                LOGGER.error("Token is not a refresh token");
+                throw new IllegalArgumentException("Token is not a refresh token");
+            }
+            return claims.getSubject();
+        } catch (Exception e) {
+            LOGGER.error("Error extracting email from refresh token: {}", e.getMessage());
+            throw new IllegalArgumentException("Invalid refresh token");
+        }
     }
 
     /**
