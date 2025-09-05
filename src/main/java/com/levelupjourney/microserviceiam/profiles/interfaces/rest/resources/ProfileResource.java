@@ -7,7 +7,8 @@ import java.util.UUID;
  */
 public record ProfileResource(
         UUID id,
-        String fullName,
         String username,
-        String streetAddress) {
+        String profileUrl,
+        String firstName,
+        String lastName) {
 }

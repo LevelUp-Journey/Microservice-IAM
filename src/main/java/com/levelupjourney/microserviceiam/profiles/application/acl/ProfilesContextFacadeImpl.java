@@ -6,11 +6,11 @@ import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.Use
 import com.levelupjourney.microserviceiam.profiles.domain.services.ProfileCommandService;
 import com.levelupjourney.microserviceiam.profiles.domain.services.ProfileQueryService;
 import com.levelupjourney.microserviceiam.profiles.interfaces.acl.ProfilesContextFacade;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
-@Service
+@Component
 public class ProfilesContextFacadeImpl implements ProfilesContextFacade {
     private final ProfileCommandService profileCommandService;
     private final ProfileQueryService profileQueryService;
@@ -23,23 +23,11 @@ public class ProfilesContextFacadeImpl implements ProfilesContextFacade {
     public UUID createProfile(
             String firstName,
             String lastName,
-            String username,
-            String street,
-            String number,
-            String city,
-            String state,
-            String postalCode,
-            String country) {
+            String profileUrl) {
         var createProfileCommand = new CreateProfileCommand(
                 firstName,
                 lastName,
-                username,
-                street,
-                number,
-                city,
-                state,
-                postalCode,
-                country);
+                profileUrl);
         var profile = profileCommandService.handle(createProfileCommand);
         return profile.isEmpty() ? null : profile.get().getId();
     }

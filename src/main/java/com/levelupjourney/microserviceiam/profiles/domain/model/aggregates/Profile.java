@@ -3,7 +3,7 @@ package com.levelupjourney.microserviceiam.profiles.domain.model.aggregates;
 import com.levelupjourney.microserviceiam.profiles.domain.model.commands.CreateProfileCommand;
 import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.Username;
 import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.PersonName;
-import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.StreetAddress;
+import com.levelupjourney.microserviceiam.profiles.domain.model.valueobjects.ProfileUrl;
 import com.levelupjourney.microserviceiam.shared.domain.model.aggregates.AuditableAbstractAggregateRoot;
 import jakarta.persistence.*;
 
@@ -19,34 +19,25 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
 
     @Embedded
     @AttributeOverrides({
-            @AttributeOverride(name = "street", column = @Column(name = "street_address_street")),
-            @AttributeOverride(name = "number", column = @Column(name = "street_address_number")),
-            @AttributeOverride(name = "city", column = @Column(name = "street_address_city")),
-            @AttributeOverride(name = "postalCode", column = @Column(name = "street_address_postal_code")),
-            @AttributeOverride(name = "country", column = @Column(name = "street_address_country"))})
-    private StreetAddress streetAddress;
+            @AttributeOverride(name = "url", column = @Column(name = "profile_url"))})
+    private ProfileUrl profileUrl;
 
-    public Profile(String firstName, String lastName, String username, String street, String number, String city, String state, String postalCode, String country) {
+    public Profile(String firstName, String lastName, String username, String profileUrl) {
         this.name = new PersonName(firstName, lastName);
         this.username = new Username(username);
-        this.streetAddress = new StreetAddress(street, number, city, state, postalCode, country);
+        this.profileUrl = new ProfileUrl(profileUrl);
     }
 
     public Profile() {
         // Default constructor for JPA
     }
 
-    public Profile(CreateProfileCommand command) {
+    public Profile(CreateProfileCommand command, String username) {
         this(
                 command.firstName(),
                 command.lastName(),
-                command.username(),
-                command.street(),
-                command.number(),
-                command.city(),
-                command.state(),
-                command.postalCode(),
-                command.country()
+                username,
+                command.profileUrl()
         );
     }
 
@@ -58,19 +49,30 @@ public class Profile extends AuditableAbstractAggregateRoot<Profile> {
         return username.username();
     }
 
-    public String getStreetAddress() {
-        return streetAddress.getStreetAddress();
+    public String getFirstName() {
+        return name.firstName();
+    }
+
+    public String getLastName() {
+        return name.lastName();
+    }
+
+    public String getProfileUrl() {
+        return profileUrl != null ? profileUrl.value() : null;
     }
 
     public void updateName(String firstName, String lastName) {
-      this.name = new PersonName(firstName, lastName);
+        this.name = new PersonName(firstName, lastName);
     }
 
     public void updateUsername(String username) {
+        // Username constructor automatically detects if it's:
+        // - Generated format (USER + 9 digits): applies strict validation
+        // - Edited format (other): applies flexible validation (3-50 chars, alphanumeric + _.- only)
         this.username = new Username(username);
     }
 
-    public void updateStreetAddress(String street, String number, String city, String state, String postalCode, String country) {
-        this.streetAddress = new StreetAddress(street, number, city, state, postalCode, country);
+    public void updateProfileUrl(String profileUrl) {
+        this.profileUrl = new ProfileUrl(profileUrl);
     }
 }

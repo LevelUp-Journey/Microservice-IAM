@@ -3,11 +3,14 @@ package com.levelupjourney.microserviceiam.iam.infrastructure.oauth2;
 import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignUpCommand;
 import com.levelupjourney.microserviceiam.iam.domain.model.entities.Role;
+import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.OAuth2UserInfo;
 import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.Roles;
 import com.levelupjourney.microserviceiam.iam.domain.services.RoleQueryService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserQueryService;
 import com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt.BearerTokenService;
+import com.levelupjourney.microserviceiam.iam.interfaces.acl.IamContextFacade;
+import com.levelupjourney.microserviceiam.profiles.interfaces.acl.ProfilesContextFacade;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +31,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     private final UserQueryService userQueryService;
     private final RoleQueryService roleQueryService;
     private final BearerTokenService tokenService;
+    private final IamContextFacade iamContextFacade;
+    private final ProfilesContextFacade profilesContextFacade;
 
     @Value("${app.oauth2.authorized-redirect-uris}")
     private String authorizedRedirectUris;
@@ -35,11 +40,15 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     public OAuth2AuthenticationSuccessHandler(UserCommandService userCommandService,
                                             UserQueryService userQueryService,
                                             RoleQueryService roleQueryService,
-                                            BearerTokenService tokenService) {
+                                            BearerTokenService tokenService,
+                                            IamContextFacade iamContextFacade,
+                                            ProfilesContextFacade profilesContextFacade) {
         this.userCommandService = userCommandService;
         this.userQueryService = userQueryService;
         this.roleQueryService = roleQueryService;
         this.tokenService = tokenService;
+        this.iamContextFacade = iamContextFacade;
+        this.profilesContextFacade = profilesContextFacade;
     }
 
     @Override
@@ -84,6 +93,11 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         if (existingUser.isPresent()) {
             user = existingUser.get();
         } else {
+            // Extract OAuth2 user info
+            String providerName = determineProvider(attributes);
+            OAuth2UserInfo userInfo = iamContextFacade.extractOAuth2UserInfo(providerName, attributes);
+            
+            // Create user in IAM
             Role userRole = roleQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetRoleByNameQuery(Roles.ROLE_STUDENT))
                     .orElseThrow(() -> new RuntimeException("Student role not found"));
             
@@ -94,6 +108,18 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 throw new RuntimeException("Failed to create user from OAuth2 data");
             }
             user = newUser.get();
+            
+            // Create profile in PROFILES with extracted data
+            try {
+                profilesContextFacade.createProfile(
+                    userInfo.firstName(),
+                    userInfo.lastName(), 
+                    userInfo.profileUrl()
+                );
+            } catch (Exception e) {
+                System.err.println("Failed to create profile for user: " + e.getMessage());
+                // Don't fail the authentication, profile can be created later
+            }
         }
 
         return tokenService.generateToken(user.getEmail_address());
@@ -113,6 +139,19 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         }
         
         return null;
+    }
+
+    private String determineProvider(Map<String, Object> attributes) {
+        // Google has specific attributes like "given_name", "family_name"
+        if (attributes.containsKey("given_name") || attributes.containsKey("family_name")) {
+            return "google";
+        }
+        // GitHub has specific attributes like "login", "avatar_url"
+        if (attributes.containsKey("login") || attributes.containsKey("avatar_url")) {
+            return "github";
+        }
+        // Default fallback
+        return "unknown";
     }
 
     private String getAuthorizedRedirectUri() {

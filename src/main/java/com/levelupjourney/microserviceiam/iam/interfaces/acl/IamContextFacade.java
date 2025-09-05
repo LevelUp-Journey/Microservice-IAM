@@ -4,6 +4,7 @@ import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignUpComman
 import com.levelupjourney.microserviceiam.iam.domain.model.entities.Role;
 import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByIdQuery;
 import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery;
+import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.OAuth2UserInfo;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserQueryService;
 import org.apache.logging.log4j.util.Strings;
@@ -80,6 +81,48 @@ public class IamContextFacade {
         var result = userQueryService.handle(getUserByIdQuery);
         if (result.isEmpty()) return Strings.EMPTY;
         return result.get().getEmail_address();
+    }
+
+    /**
+     * Extracts OAuth2 user information from provider attributes.
+     * This method is called during OAuth2 authentication to get user profile data.
+     * @param providerName The OAuth2 provider name (google, github)
+     * @param attributes The OAuth2 user attributes from provider
+     * @return OAuth2UserInfo with extracted user data
+     */
+    public OAuth2UserInfo extractOAuth2UserInfo(String providerName, java.util.Map<String, Object> attributes) {
+        return switch (providerName.toLowerCase()) {
+            case "google" -> extractGoogleUserInfo(attributes);
+            case "github" -> extractGitHubUserInfo(attributes);
+            default -> throw new IllegalArgumentException("Unsupported OAuth2 provider: " + providerName);
+        };
+    }
+
+    private OAuth2UserInfo extractGoogleUserInfo(java.util.Map<String, Object> attributes) {
+        String email = (String) attributes.get("email");
+        String firstName = (String) attributes.get("given_name");
+        String lastName = (String) attributes.get("family_name");
+        String profileUrl = (String) attributes.get("picture");
+        
+        return new OAuth2UserInfo(firstName, lastName, profileUrl, email);
+    }
+
+    private OAuth2UserInfo extractGitHubUserInfo(java.util.Map<String, Object> attributes) {
+        String login = (String) attributes.get("login");
+        String name = (String) attributes.get("name");
+        String profileUrl = (String) attributes.get("avatar_url");
+        String email = login + "@github.oauth"; // GitHub might not provide public email
+        
+        // Parse name into firstName and lastName if available
+        String firstName = null;
+        String lastName = null;
+        if (name != null && !name.trim().isEmpty()) {
+            String[] nameParts = name.trim().split("\\s+", 2);
+            firstName = nameParts[0];
+            lastName = nameParts.length > 1 ? nameParts[1] : null;
+        }
+        
+        return new OAuth2UserInfo(firstName, lastName, profileUrl, email);
     }
 
 }
