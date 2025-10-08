@@ -3,10 +3,13 @@ package com.levelupjourney.microserviceiam.iam.infrastructure.oauth2;
 import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignUpCommand;
 import com.levelupjourney.microserviceiam.iam.domain.model.entities.Role;
+import com.levelupjourney.microserviceiam.iam.domain.model.events.UserRegisteredEvent;
+import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.OAuth2UserInfo;
 import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.Roles;
 import com.levelupjourney.microserviceiam.iam.domain.services.RoleQueryService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserQueryService;
+import com.levelupjourney.microserviceiam.iam.infrastructure.eventpublishers.IamEventPublisher;
 import com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt.BearerTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,6 +20,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,6 +32,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     private final UserQueryService userQueryService;
     private final RoleQueryService roleQueryService;
     private final BearerTokenService tokenService;
+    private final OAuth2UserInfoExtractor userInfoExtractor;
+    private final IamEventPublisher eventPublisher;
 
     @Value("${app.oauth2.authorized-redirect-uris}")
     private String authorizedRedirectUris;
@@ -35,11 +41,15 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     public OAuth2AuthenticationSuccessHandler(UserCommandService userCommandService,
                                             UserQueryService userQueryService,
                                             RoleQueryService roleQueryService,
-                                            BearerTokenService tokenService) {
+                                            BearerTokenService tokenService,
+                                            OAuth2UserInfoExtractor userInfoExtractor,
+                                            IamEventPublisher eventPublisher) {
         this.userCommandService = userCommandService;
         this.userQueryService = userQueryService;
         this.roleQueryService = roleQueryService;
         this.tokenService = tokenService;
+        this.userInfoExtractor = userInfoExtractor;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -71,16 +81,21 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     }
 
     private String handleOAuth2User(OAuth2User oauth2User) {
-        Map<String, Object> attributes = oauth2User.getAttributes();
-        String email_address = extractemail_address(attributes);
-        
+        // Extract provider and user info
+        String provider = userInfoExtractor.extractProvider(oauth2User);
+        OAuth2UserInfo userInfo = userInfoExtractor.extractUserInfo(oauth2User, provider);
+
+        String email_address = userInfo.email();
+
         if (email_address == null) {
             throw new RuntimeException("email_address not found in OAuth2 user attributes");
         }
 
         Optional<User> existingUser = userQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery(email_address));
-        
+
         User user;
+        boolean isNewUser = false;
+
         if (existingUser.isPresent()) {
             user = existingUser.get();
         } else {
@@ -95,29 +110,26 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 throw new RuntimeException("Failed to create user from OAuth2 data");
             }
             user = newUser.get();
+            isNewUser = true;
+        }
 
-            // TODO: Profile creation will be handled by the separate Profiles microservice
+        // Publish event only for new users
+        if (isNewUser) {
+            UserRegisteredEvent event = new UserRegisteredEvent(
+                    user.getId(),
+                    email_address,
+                    userInfo.firstName(),
+                    userInfo.lastName(),
+                    userInfo.profileUrl(),
+                    provider,
+                    LocalDateTime.now()
+            );
+
+            eventPublisher.publishUserRegistered(event);
         }
 
         return tokenService.generateToken(user.getEmail_address());
     }
-
-    private String extractemail_address(Map<String, Object> attributes) {
-        // Google uses "email"
-        if (attributes.containsKey("email") && attributes.get("email") != null) {
-            return (String) attributes.get("email");
-        }
-        
-        // GitHub might not provide email in basic user info, use login as identifier
-        if (attributes.containsKey("login")) {
-            String login = (String) attributes.get("login");
-            // Use GitHub login as email identifier
-            return login + "@github.oauth";
-        }
-        
-        return null;
-    }
-
 
     private String getAuthorizedRedirectUri() {
         String[] uris = authorizedRedirectUris.split(",");

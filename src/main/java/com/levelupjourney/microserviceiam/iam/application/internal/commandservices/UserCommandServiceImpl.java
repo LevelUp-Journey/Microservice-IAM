@@ -6,13 +6,16 @@ import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignInCommand;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignUpCommand;
 import com.levelupjourney.microserviceiam.iam.domain.model.entities.Role;
+import com.levelupjourney.microserviceiam.iam.domain.model.events.UserRegisteredEvent;
 import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.TokenPair;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
+import com.levelupjourney.microserviceiam.iam.infrastructure.eventpublishers.IamEventPublisher;
 import com.levelupjourney.microserviceiam.iam.infrastructure.persistence.jpa.repositories.RoleRepository;
 import com.levelupjourney.microserviceiam.iam.infrastructure.persistence.jpa.repositories.UserRepository;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
@@ -28,14 +31,19 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final UserRepository userRepository;
     private final HashingService hashingService;
     private final TokenService tokenService;
-
     private final RoleRepository roleRepository;
+    private final IamEventPublisher eventPublisher;
 
-    public UserCommandServiceImpl(UserRepository userRepository, HashingService hashingService, TokenService tokenService, RoleRepository roleRepository) {
+    public UserCommandServiceImpl(UserRepository userRepository,
+                                 HashingService hashingService,
+                                 TokenService tokenService,
+                                 RoleRepository roleRepository,
+                                 IamEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.hashingService = hashingService;
         this.tokenService = tokenService;
         this.roleRepository = roleRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -76,6 +84,56 @@ public class UserCommandServiceImpl implements UserCommandService {
         var roles = validatedRoles.stream().map(role -> roleRepository.findByName(role.getName()).orElseThrow(() -> new RuntimeException("Role name not found"))).toList();
         var user = new User(command.email_address(), hashingService.encode(command.password()), roles);
         userRepository.save(user);
-        return userRepository.findByEmail_address(command.email_address());
+
+        var savedUser = userRepository.findByEmail_address(command.email_address());
+
+        // Publish user registered event for local registration
+        if (savedUser.isPresent()) {
+            publishUserRegisteredEvent(savedUser.get(), "local");
+        }
+
+        return savedUser;
+    }
+
+    /**
+     * Publishes a user registered event to Kafka
+     * Extracts email parts to generate basic first/last name for local registrations
+     *
+     * @param user the registered user
+     * @param provider the provider ("local" for traditional registration, "google", "github" for OAuth2)
+     */
+    private void publishUserRegisteredEvent(User user, String provider) {
+        String email = user.getEmail_address();
+        String emailPrefix = email.split("@")[0];
+
+        // Extract basic name from email (e.g., "john.doe@example.com" -> "John" "Doe")
+        String[] nameParts = emailPrefix.split("[._-]");
+        String firstName = nameParts.length > 0 ? capitalize(nameParts[0]) : "User";
+        String lastName = nameParts.length > 1 ? capitalize(nameParts[1]) : "";
+
+        UserRegisteredEvent event = new UserRegisteredEvent(
+                user.getId(),
+                email,
+                firstName,
+                lastName,
+                null, // No profile URL for local registration
+                provider,
+                LocalDateTime.now()
+        );
+
+        eventPublisher.publishUserRegistered(event);
+    }
+
+    /**
+     * Capitalizes the first letter of a string
+     *
+     * @param str the string to capitalize
+     * @return the capitalized string
+     */
+    private String capitalize(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1).toLowerCase();
     }
 }
