@@ -128,7 +128,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             eventPublisher.publishUserRegistered(event);
         }
 
-        return tokenService.generateToken(user.getEmail_address());
+        return tokenService.generateToken(user);
     }
 
     private String getAuthorizedRedirectUri() {

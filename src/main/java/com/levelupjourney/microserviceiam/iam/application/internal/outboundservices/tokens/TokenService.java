@@ -1,5 +1,11 @@
 package com.levelupjourney.microserviceiam.iam.application.internal.outboundservices.tokens;
 
+import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
+
+import java.util.List;
+
+import java.util.List;
+
 /**
  * TokenService interface
  * This interface is used to generate and validate tokens
@@ -47,4 +53,25 @@ public interface TokenService {
      * @return String the email_address
      */
     String getEmailAddressFromRefreshToken(String refreshToken);
+
+    /**
+     * Generate a token for a given user
+     * @param user the user
+     * @return String the token
+     */
+    String generateToken(User user);
+
+    /**
+     * Extract the userId from a token
+     * @param token the token
+     * @return Long the userId
+     */
+    Long getUserIdFromToken(String token);
+
+    /**
+     * Extract the roles from a token
+     * @param token the token
+     * @return List<String> the roles
+     */
+    List<String> getRolesFromToken(String token);
 }
