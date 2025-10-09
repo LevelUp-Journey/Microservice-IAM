@@ -1,6 +1,7 @@
 package com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt;
 
 import com.levelupjourney.microserviceiam.iam.application.internal.outboundservices.tokens.TokenService;
+import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 
@@ -25,4 +26,12 @@ public interface BearerTokenService extends TokenService {
      * @see Authentication
      */
     String generateToken(Authentication authentication);
+
+    /**
+     * This method is responsible for generating a JWT token from a user object.
+     * @param user the user object
+     * @return String the JWT token
+     * @see User
+     */
+    String generateToken(User user);
 }

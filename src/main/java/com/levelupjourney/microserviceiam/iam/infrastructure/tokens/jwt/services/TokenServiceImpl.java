@@ -1,5 +1,6 @@
 package com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt.services;
 
+import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt.BearerTokenService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -16,7 +17,9 @@ import org.springframework.util.StringUtils;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Token service implementation for JWT tokens.
@@ -61,6 +64,30 @@ public class TokenServiceImpl implements BearerTokenService {
     @Override
     public String generateToken(String email_address) {
         return buildTokenWithDefaultParameters(email_address);
+    }
+
+    /**
+     * This method generates a JWT token from a user object
+     * @param user the user object
+     * @return String the JWT token
+     */
+    @Override
+    public String generateToken(User user) {
+        var issuedAt = new Date();
+        var expiration = DateUtils.addHours(issuedAt, expirationHours);
+        var key = getSigningKey();
+        List<String> roles = user.getRoles().stream()
+                .map(role -> role.getStringName())
+                .collect(Collectors.toList());
+        return Jwts.builder()
+                .subject(user.getEmail_address())
+                .claim("userId", user.getId())
+                .claim("email", user.getEmail_address())
+                .claim("roles", roles)
+                .issuedAt(issuedAt)
+                .expiration(expiration)
+                .signWith(key)
+                .compact();
     }
 
     /**
@@ -222,6 +249,26 @@ public class TokenServiceImpl implements BearerTokenService {
         String parameter = getAuthorizationParameterFrom(request);
         if (isTokenPresentIn(parameter) && isBearerTokenIn(parameter)) return extractTokenFrom(parameter);
         return null;
+    }
+
+    /**
+     * This method extracts the userId from a JWT token
+     * @param token the token
+     * @return Long the userId
+     */
+    @Override
+    public Long getUserIdFromToken(String token) {
+        return extractClaim(token, claims -> claims.get("userId", Long.class));
+    }
+
+    /**
+     * This method extracts the roles from a JWT token
+     * @param token the token
+     * @return List<String> the roles
+     */
+    @Override
+    public List<String> getRolesFromToken(String token) {
+        return extractClaim(token, claims -> claims.get("roles", List.class));
     }
 
 }
