@@ -60,6 +60,9 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
+        max.block.ms: 2000  # Timeout rápido si Kafka no responde (2 segundos)
+        request.timeout.ms: 2000  # Timeout de request
+        delivery.timeout.ms: 3000  # Timeout total de entrega
         spring:
           json:
             add:
@@ -87,6 +90,15 @@ app:
     secret: ${JWT_SECRET}
     expiration-hours: 1
     refresh-expiration-days: 7
+
+  # ===================================================
+  # Kafka Configuration
+  # ===================================================
+  kafka:
+    enabled: ${KAFKA_ENABLED:true}  # Set to false to disable Kafka completely
+  
+  events:
+    retry-interval-ms: 15000  # Intervalo de reintento para eventos fallidos
 
   # ===================================================
   # OAuth2 Configuration
