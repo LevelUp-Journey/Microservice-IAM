@@ -1,0 +1,112 @@
+spring:
+  application:
+    name: microservice-iam
+
+  # ===================================================
+  # PostgreSQL Configuration
+  # ===================================================
+  datasource:
+    url: ${POSTGRES_URL}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+    show-sql: false
+
+  # ===================================================
+  # Swagger & OpenAPI Configuration
+  # ===================================================
+  docker:
+    compose:
+      enabled: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,email,profile
+            redirect-uri: ${GATEWAY_URL:https://microservice-apigateway.onrender.com}/login/oauth2/code/google
+            client-name: Google
+          github:
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
+            scope: user:email,read:user
+            redirect-uri: ${GATEWAY_URL:https://microservice-apigateway.onrender.com}/login/oauth2/code/github
+            client-name: GitHub
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
+            user-name-attribute: sub
+          github:
+            authorization-uri: https://github.com/login/oauth/authorize
+            token-uri: https://github.com/login/oauth/access_token
+            user-info-uri: https://api.github.com/user
+            user-name-attribute: id
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring:
+          json:
+            add:
+              type:
+                headers: false
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    disable-swagger-default-url: true
+
+documentation:
+  application:
+    description: Level Up Journey - A gamified programming challenge platform where users can create, solve, and validate exercises in multiple languages.
+    version: 1.0.0
+
+# ===================================================
+# JWT Configuration
+# ===================================================
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-hours: 1
+    refresh-expiration-days: 7
+
+  # ===================================================
+  # OAuth2 Configuration
+  # ===================================================
+  oauth2:
+    authorized-redirect-uris: ${FRONTEND_URL:http://localhost:3000}/en/auth/callback,${FRONTEND_URL:http://localhost:3000}/es/auth/callback
+    cookie-expire-seconds: 180
+
+  # ===================================================
+  # CORS Configuration
+  # ===================================================
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,https://microservice-apigateway.onrender.com}
+    allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}
+    allowed-headers: ${CORS_ALLOWED_HEADERS:*}
+    allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
+    max-age: ${CORS_MAX_AGE:3600}
+
+# ===================================================
+# Server Configuration
+# ===================================================
+server:
+  port: ${PORT:8081}
