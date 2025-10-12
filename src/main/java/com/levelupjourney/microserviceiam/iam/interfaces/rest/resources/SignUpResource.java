@@ -7,12 +7,12 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record SignUpResource(
-        @NotBlank(message = "Email address is required")
+        @NotBlank(message = "Email is required")
         @Email(regexp = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$", 
-               message = "Email address must be in valid RFC 5322 format")
-        @Size(max = 255, message = "Email address cannot exceed 255 characters")
-        @Schema(description = "User email address", example = "user@example.com")
-        String email_address,
+               message = "Email must be in valid RFC 5322 format")
+        @Size(max = 255, message = "Email cannot exceed 255 characters")
+        @Schema(description = "User email", example = "user@example.com")
+        String email,
         
         @NotBlank(message = "Password is required")
         @Size(min = 8, max = 128, message = "Password must be between 8 and 128 characters")

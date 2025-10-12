@@ -17,19 +17,19 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, UUID>
 {
     /**
-     * This method is responsible for finding the user by email_address.
-     * @param email_address The email_address.
+     * This method is responsible for finding the user by email.
+     * @param email The email.
      * @return The user object.
      */
-    @Query("SELECT u FROM User u WHERE u.emailAddress.email = :email_address")
-    Optional<User> findByEmail_address(@Param("email_address") String email_address);
+    @Query("SELECT u FROM User u WHERE u.emailAddress.email = :email")
+    Optional<User> findByEmail(@Param("email") String email);
 
     /**
-     * This method is responsible for checking if the user exists by email_address.
-     * @param email_address The email_address.
+     * This method is responsible for checking if the user exists by email.
+     * @param email The email.
      * @return True if the user exists, false otherwise.
      */
-    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN TRUE ELSE FALSE END FROM User u WHERE u.emailAddress.email = :email_address")
-    boolean existsByEmail_address(@Param("email_address") String email_address);
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN TRUE ELSE FALSE END FROM User u WHERE u.emailAddress.email = :email")
+    boolean existsByEmail(@Param("email") String email);
 
 }

@@ -57,13 +57,13 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     /**
-     * This method generates a JWT token from an email_address
-     * @param email_address the email_address
+     * This method generates a JWT token from an email
+     * @param email the email
      * @return String the JWT token
      */
     @Override
-    public String generateToken(String email_address) {
-        return buildTokenWithDefaultParameters(email_address);
+    public String generateToken(String email) {
+        return buildTokenWithDefaultParameters(email);
     }
 
     /**
@@ -80,9 +80,9 @@ public class TokenServiceImpl implements BearerTokenService {
                 .map(role -> role.getStringName())
                 .collect(Collectors.toList());
         return Jwts.builder()
-                .subject(user.getEmail_address())
+                .subject(user.getEmail())
                 .claim("userId", user.getId())
-                .claim("email", user.getEmail_address())
+                .claim("email", user.getEmail())
                 .claim("roles", roles)
                 .issuedAt(issuedAt)
                 .expiration(expiration)
@@ -91,17 +91,17 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     /**
-     * This method generates a JWT token from an email_address and a secret.
+     * This method generates a JWT token from an email and a secret.
      * It uses the default expiration days from the application.properties file.
-     * @param email_address the email_address
+     * @param email the email
      * @return String the JWT token
      */
-    private String buildTokenWithDefaultParameters(String email_address) {
+    private String buildTokenWithDefaultParameters(String email) {
         var issuedAt = new Date();
         var expiration = DateUtils.addHours(issuedAt, expirationHours);
         var key = getSigningKey();
         return Jwts.builder()
-                .subject(email_address)
+                .subject(email)
                 .issuedAt(issuedAt)
                 .expiration(expiration)
                 .signWith(key)
@@ -109,12 +109,12 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     @Override
-    public String generateRefreshToken(String email_address) {
+    public String generateRefreshToken(String email) {
         var issuedAt = new Date();
         var expiration = DateUtils.addDays(issuedAt, refreshExpirationDays);
         var key = getSigningKey();
         return Jwts.builder()
-                .subject(email_address)
+                .subject(email)
                 .claim("type", "refresh")
                 .issuedAt(issuedAt)
                 .expiration(expiration)
@@ -148,7 +148,7 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     @Override
-    public String getEmailAddressFromRefreshToken(String token) {
+    public String getEmailFromRefreshToken(String token) {
         try {
             Claims claims = extractAllClaims(token);
             String tokenType = claims.get("type", String.class);
@@ -164,12 +164,12 @@ public class TokenServiceImpl implements BearerTokenService {
     }
 
     /**
-     * This method extracts the email_address from a JWT token
+     * This method extracts the email from a JWT token
      * @param token the token
-     * @return String the email_address
+     * @return String the email
      */
     @Override
-    public String getEmailAddressFromToken(String token) {
+    public String getEmailFromToken(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 

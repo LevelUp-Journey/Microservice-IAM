@@ -3,7 +3,7 @@ package com.levelupjourney.microserviceiam.iam.interfaces.acl;
 import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignUpCommand;
 import com.levelupjourney.microserviceiam.iam.domain.model.entities.Role;
 import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByIdQuery;
-import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery;
+import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmailQuery;
 import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.OAuth2UserInfo;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserQueryService;
@@ -65,7 +65,7 @@ public class IamContextFacade {
      * @return The id of the user.
      */
     public UUID fetchUserIdByUsername(String username) {
-        var getUserByUsernameQuery = new GetUserByEmail_addressQuery(username);
+        var getUserByUsernameQuery = new GetUserByEmailQuery(username);
         var result = userQueryService.handle(getUserByUsernameQuery);
         if (result.isEmpty()) return null;
         return result.get().getId();
@@ -80,7 +80,7 @@ public class IamContextFacade {
         var getUserByIdQuery = new GetUserByIdQuery(userId);
         var result = userQueryService.handle(getUserByIdQuery);
         if (result.isEmpty()) return Strings.EMPTY;
-        return result.get().getEmail_address();
+        return result.get().getEmail();
     }
 
     /**

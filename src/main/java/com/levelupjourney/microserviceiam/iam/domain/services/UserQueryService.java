@@ -3,7 +3,7 @@ package com.levelupjourney.microserviceiam.iam.domain.services;
 import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetAllUsersQuery;
 import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByIdQuery;
-import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery;
+import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmailQuery;
 
 import java.util.List;
 import java.util.Optional;
@@ -30,10 +30,10 @@ public interface UserQueryService {
     Optional<User> handle(GetUserByIdQuery query);
 
     /**
-     * Handle get user by email_address query
-     * @param query the {@link GetUserByEmail_addressQuery} query
+     * Handle get user by email query
+     * @param query the {@link GetUserByEmailQuery} query
      * @return an {@link Optional} of {@link User} entity
      */
-    Optional<User> handle(GetUserByEmail_addressQuery query);
+    Optional<User> handle(GetUserByEmailQuery query);
 
 }

@@ -44,14 +44,14 @@ public class User extends AuditableAbstractAggregateRoot<User> {
         this.roles = new HashSet<>();
     }
     
-    public User(String email_address, String password) {
-        this.emailAddress = new EmailAddress(email_address);
+    public User(String email, String password) {
+        this.emailAddress = new EmailAddress(email);
         this.userPassword = new Password(password);
         this.roles = new HashSet<>();
     }
 
-    public User(String email_address, String password, List<Role> roles) {
-        this(email_address, password);
+    public User(String email, String password, List<Role> roles) {
+        this(email, password);
         addRoles(roles);
     }
 
@@ -77,19 +77,19 @@ public class User extends AuditableAbstractAggregateRoot<User> {
     }
 
     /**
-     * Get email address (for compatibility)
-     * @return the normalized email address
+     * Get email (for compatibility)
+     * @return the normalized email
      */
-    public String getEmail_address() {
+    public String getEmail() {
         return this.emailAddress != null ? this.emailAddress.normalized() : null;
     }
 
     /**
-     * Set email address (for compatibility)
-     * @param email_address the email address
+     * Set email (for compatibility)
+     * @param email the email
      */
-    public void setEmail_address(String email_address) {
-        this.emailAddress = new EmailAddress(email_address);
+    public void setEmail(String email) {
+        this.emailAddress = new EmailAddress(email);
     }
 
     /**
