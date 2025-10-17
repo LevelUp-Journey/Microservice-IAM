@@ -3,7 +3,7 @@ package com.levelupjourney.microserviceiam.iam.application.internal.queryservice
 import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
 import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetAllUsersQuery;
 import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByIdQuery;
-import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery;
+import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmailQuery;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserQueryService;
 import com.levelupjourney.microserviceiam.iam.infrastructure.persistence.jpa.repositories.UserRepository;
 import org.springframework.stereotype.Service;
@@ -50,13 +50,13 @@ public class UserQueryServiceImpl implements UserQueryService {
     }
 
     /**
-     * Handle {@link GetUserByEmail_addressQuery} query.
-     * @param query {@link GetUserByEmail_addressQuery} instance.
+     * Handle {@link GetUserByEmailQuery} query.
+     * @param query {@link GetUserByEmailQuery} instance.
      * @return {@link Optional} of {@link User} instance.
-     * @see GetUserByEmail_addressQuery
+     * @see GetUserByEmailQuery
      */
     @Override
-    public Optional<User> handle(GetUserByEmail_addressQuery query) {
-        return userRepository.findByEmail_address(query.email_address());
+    public Optional<User> handle(GetUserByEmailQuery query) {
+        return userRepository.findByEmail(query.email());
     }
 }

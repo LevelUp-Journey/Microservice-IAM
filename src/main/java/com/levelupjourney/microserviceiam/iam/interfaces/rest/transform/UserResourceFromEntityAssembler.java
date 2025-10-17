@@ -5,6 +5,6 @@ import com.levelupjourney.microserviceiam.iam.interfaces.rest.resources.UserReso
 
 public class UserResourceFromEntityAssembler {
     public static UserResource toResourceFromEntity(User user) {
-        return new UserResource(user.getId(), user.getEmail_address());
+        return new UserResource(user.getId(), user.getEmail());
     }
 }

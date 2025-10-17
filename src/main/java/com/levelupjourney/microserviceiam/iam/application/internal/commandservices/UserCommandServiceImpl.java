@@ -51,19 +51,19 @@ public class UserCommandServiceImpl implements UserCommandService {
      * <p>
      *     This method handles the {@link SignInCommand} command and returns the user and the token pair.
      * </p>
-     * @param command the sign-in command containing the email_address and password
-     * @return and optional containing the user matching the email_address and the generated token pair
+     * @param command the sign-in command containing the email and password
+     * @return and optional containing the user matching the email and the generated token pair
      * @throws RuntimeException if the user is not found or the password is invalid
      */
     @Override
     public Optional<ImmutablePair<User, TokenPair>> handle(SignInCommand command) {
-        var user = userRepository.findByEmail_address(command.email_address());
+        var user = userRepository.findByEmail(command.email());
         if (user.isEmpty())
             throw new RuntimeException("User not found");
         if (!hashingService.matches(command.password(), user.get().getPassword()))
             throw new RuntimeException("Invalid password");
         var accessToken = tokenService.generateToken(user.get());
-        var refreshToken = tokenService.generateRefreshToken(user.get().getEmail_address());
+        var refreshToken = tokenService.generateRefreshToken(user.get().getEmail());
         var tokenPair = new TokenPair(accessToken, refreshToken);
         return Optional.of(ImmutablePair.of(user.get(), tokenPair));
     }
@@ -78,14 +78,14 @@ public class UserCommandServiceImpl implements UserCommandService {
      */
     @Override
     public Optional<User> handle(SignUpCommand command) {
-        if (userRepository.existsByEmail_address(command.email_address()))
+        if (userRepository.existsByEmail(command.email()))
             throw new RuntimeException("Email address already exists");
         var validatedRoles = Role.validateRoleSet(command.roles());
         var roles = validatedRoles.stream().map(role -> roleRepository.findByName(role.getName()).orElseThrow(() -> new RuntimeException("Role name not found"))).toList();
-        var user = new User(command.email_address(), hashingService.encode(command.password()), roles);
+        var user = new User(command.email(), hashingService.encode(command.password()), roles);
         userRepository.save(user);
 
-        var savedUser = userRepository.findByEmail_address(command.email_address());
+        var savedUser = userRepository.findByEmail(command.email());
 
         // Publish user registered event for local registration
         if (savedUser.isPresent()) {
@@ -103,7 +103,7 @@ public class UserCommandServiceImpl implements UserCommandService {
      * @param provider the provider ("local" for traditional registration, "google", "github" for OAuth2)
      */
     private void publishUserRegisteredEvent(User user, String provider) {
-        String email = user.getEmail_address();
+        String email = user.getEmail();
         String emailPrefix = email.split("@")[0];
 
         // Extract basic name from email (e.g., "john.doe@example.com" -> "John" "Doe")

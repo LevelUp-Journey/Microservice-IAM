@@ -1,7 +1,7 @@
 package com.levelupjourney.microserviceiam.iam.interfaces.rest;
 
 import com.levelupjourney.microserviceiam.iam.application.internal.outboundservices.tokens.TokenService;
-import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery;
+import com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmailQuery;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserQueryService;
 import com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt.BearerTokenService;
@@ -114,11 +114,11 @@ public class AuthenticationController {
             String token = authHeader.substring(7);
             try {
                 if (tokenService.validateToken(token)) {
-                    String email_address = tokenService.getEmailAddressFromToken(token);
+                    String email = tokenService.getEmailFromToken(token);
                     return ResponseEntity.ok(Map.of(
                         "valid", true,
                         "message", "Token is valid",
-                        "email_address", email_address
+                        "email", email
                     ));
                 }
             } catch (Exception e) {
@@ -152,8 +152,8 @@ public class AuthenticationController {
                 ));
             }
             
-            String emailAddress = refreshTokenService.getEmailAddressFromRefreshToken(refreshTokenResource.refreshToken());
-            var getUserQuery = new GetUserByEmail_addressQuery(emailAddress);
+            String emailAddress = refreshTokenService.getEmailFromRefreshToken(refreshTokenResource.refreshToken());
+            var getUserQuery = new GetUserByEmailQuery(emailAddress);
             var user = userQueryService.handle(getUserQuery);
             
             if (user.isEmpty()) {

@@ -85,13 +85,13 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         String provider = userInfoExtractor.extractProvider(oauth2User);
         OAuth2UserInfo userInfo = userInfoExtractor.extractUserInfo(oauth2User, provider);
 
-        String email_address = userInfo.email();
+        String email = userInfo.email();
 
-        if (email_address == null) {
-            throw new RuntimeException("email_address not found in OAuth2 user attributes");
+        if (email == null) {
+            throw new RuntimeException("email not found in OAuth2 user attributes");
         }
 
-        Optional<User> existingUser = userQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmail_addressQuery(email_address));
+        Optional<User> existingUser = userQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetUserByEmailQuery(email));
 
         User user;
         boolean isNewUser = false;
@@ -103,7 +103,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             Role userRole = roleQueryService.handle(new com.levelupjourney.microserviceiam.iam.domain.model.queries.GetRoleByNameQuery(Roles.ROLE_STUDENT))
                     .orElseThrow(() -> new RuntimeException("Student role not found"));
 
-            SignUpCommand signUpCommand = new SignUpCommand(email_address, "oauth2_user_" + System.currentTimeMillis(), List.of(userRole));
+            SignUpCommand signUpCommand = new SignUpCommand(email, "oauth2_user_" + System.currentTimeMillis(), List.of(userRole));
             Optional<User> newUser = userCommandService.handle(signUpCommand);
 
             if (newUser.isEmpty()) {
@@ -117,7 +117,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         if (isNewUser) {
             UserRegisteredEvent event = new UserRegisteredEvent(
                     user.getId(),
-                    email_address,
+                    email,
                     userInfo.firstName(),
                     userInfo.lastName(),
                     userInfo.profileUrl(),
