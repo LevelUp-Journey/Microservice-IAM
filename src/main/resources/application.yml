@@ -134,7 +134,7 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
   instance:
-    ip-address: 192.168.0.118
+    ip-address: ${SERVER_IP}
     prefer-ip-address: true
 
     status-page-url: http://${eureka.instance.ip-address}:8081/swagger-ui/index.html
