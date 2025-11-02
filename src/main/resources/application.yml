@@ -1,6 +1,6 @@
 spring:
   application:
-    name: microservice-iam
+    name: IAM_SERVICE
 
   # ===================================================
   # PostgreSQL Configuration
