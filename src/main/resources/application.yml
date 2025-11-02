@@ -1,14 +1,14 @@
 spring:
   application:
-    name: IAM_SERVICE
+    name: iam-service
 
   # ===================================================
   # PostgreSQL Configuration
   # ===================================================
   datasource:
-    url: jdbc:postgresql://localhost:5432/iam_microservice
-    username: admin
-    password: admin
+    url: ${POSTGRES_URL}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -34,13 +34,13 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: openid,email,profile
-            redirect-uri: ${GATEWAY_URL:http://localhost:8081}/login/oauth2/code/google
+            redirect-uri: ${BACKEND_URL:http://localhost:8081}/login/oauth2/code/google
             client-name: Google
           github:
             client-id: ${GITHUB_CLIENT_ID}
             client-secret: ${GITHUB_CLIENT_SECRET}
-            scope: user:email,read:user
-            redirect-uri: ${GATEWAY_URL:http://localhost:8081}/login/oauth2/code/github
+            scope: user:email,read:user,user
+            redirect-uri: ${BACKEND_URL:http://localhost:8081}/login/oauth2/code/github
             client-name: GitHub
         provider:
           google:
@@ -60,7 +60,7 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
-        max.block.ms: 2000  # Timeout rápido si Kafka no responde (2 segundos)
+        max.block.ms: 2000  # Timeout rÃ¡pido si Kafka no responde (2 segundos)
         request.timeout.ms: 2000  # Timeout de request
         delivery.timeout.ms: 3000  # Timeout total de entrega
         spring:
@@ -68,6 +68,13 @@ spring:
             add:
               type:
                 headers: false
+    admin:
+      properties:
+        bootstrap.servers: ${KAFKA_BOOTSTRAP_SERVERS}
+      new-topics:
+        - name: iam.user.registered
+          partitions: 3
+          replication-factor: 1
 
 springdoc:
   api-docs:
@@ -96,7 +103,7 @@ app:
   # ===================================================
   kafka:
     enabled: ${KAFKA_ENABLED:true}  # Set to false to disable Kafka completely
-  
+
   events:
     retry-interval-ms: 15000  # Intervalo de reintento para eventos fallidos
 
@@ -104,31 +111,51 @@ app:
   # OAuth2 Configuration
   # ===================================================
   oauth2:
-    authorized-redirect-uris: ${FRONTEND_URL:http://localhost:3000}/auth/callback,${FRONTEND_URL:http://localhost:3000}/auth/callback
+    authorized-redirect-uris: ${FRONTEND_URL:http://localhost:3000}/en/auth/callback,${FRONTEND_URL:http://localhost:3000}/es/auth/callback
     cookie-expire-seconds: 180
 
   # ===================================================
   # CORS Configuration
   # ===================================================
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,https://microservice-apigateway.onrender.com}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
     allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}
     allowed-headers: ${CORS_ALLOWED_HEADERS:*}
     allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
     max-age: ${CORS_MAX_AGE:3600}
 
 # ===================================================
+# Eureka Client Configuration
+# ===================================================
+eureka:
+  client:
+    service-url:
+      defaultZone: ${SERVICE_DISCOVERY_URL}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: false
+    hostname: localhost
+    instance-id: ${spring.application.name}:${server.port:8081}
+    status-page-url: http://localhost:${server.port:8081}/swagger-ui/index.html
+    health-check-url: http://localhost:${server.port:8081}/actuator/health
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+# ===================================================
+# Actuator Configuration (for Eureka health checks)
+# ===================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# ===================================================
 # Server Configuration
 # ===================================================
 server:
   port: ${PORT:8081}
-
-
-eureka:
-  client:
-    serviceUrl:
-      defaultZone: ${SERVICE_DISCOVERY_URL:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: true
