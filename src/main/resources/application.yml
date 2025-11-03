@@ -2,9 +2,7 @@ spring:
   application:
     name: iam-service
 
-  # ===================================================
-  # PostgreSQL Configuration
-  # ===================================================
+  # --- Configuración de Base de Datos (PostgreSQL) ---
   datasource:
     url: ${POSTGRES_URL}
     username: ${POSTGRES_USERNAME}
@@ -12,20 +10,18 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: update # Actualiza el schema de la BD al iniciar
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
     show-sql: false
 
-  # ===================================================
-  # Swagger & OpenAPI Configuration
-  # ===================================================
   docker:
     compose:
       enabled: false
 
+  # --- Configuración de OAuth2 (Google & GitHub) ---
   security:
     oauth2:
       client:
@@ -54,28 +50,32 @@ spring:
             user-info-uri: https://api.github.com/user
             user-name-attribute: id
 
+  # --- Configuración de Kafka (Azure Event Hubs) ---
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    properties:
+      security.protocol: SASL_SSL
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="$ConnectionString" password="${KAFKA_CONNECTION_STRING}";'
+
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
-        max.block.ms: 2000  # Timeout rÃ¡pido si Kafka no responde (2 segundos)
-        request.timeout.ms: 2000  # Timeout de request
-        delivery.timeout.ms: 3000  # Timeout total de entrega
+        max.block.ms: 2000
+        request.timeout.ms: 2000
+        delivery.timeout.ms: 3000
         spring:
           json:
             add:
               type:
                 headers: false
     admin:
-      properties:
-        bootstrap.servers: ${KAFKA_BOOTSTRAP_SERVERS}
       new-topics:
         - name: iam.user.registered
           partitions: 3
-          replication-factor: 1
 
+# --- Configuración de Swagger / OpenAPI ---
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -86,37 +86,22 @@ springdoc:
 
 documentation:
   application:
-    description: Level Up Journey - A gamified programming challenge platform where users can create, solve, and validate exercises in multiple languages.
+    description: Level Up Journey - Plataforma gamificada de retos de programación.
     version: 1.0.0
 
-# ===================================================
-# JWT Configuration
-# ===================================================
+# --- Configuración personalizada de la aplicación ---
 app:
   jwt:
     secret: ${JWT_SECRET}
     expiration-hours: 1
     refresh-expiration-days: 7
-
-  # ===================================================
-  # Kafka Configuration
-  # ===================================================
   kafka:
-    enabled: ${KAFKA_ENABLED:true}  # Set to false to disable Kafka completely
-
+    enabled: ${KAFKA_ENABLED:true}
   events:
-    retry-interval-ms: 15000  # Intervalo de reintento para eventos fallidos
-
-  # ===================================================
-  # OAuth2 Configuration
-  # ===================================================
+    retry-interval-ms: 15000
   oauth2:
     authorized-redirect-uris: ${FRONTEND_URL:http://localhost:3000}/en/auth/callback,${FRONTEND_URL:http://localhost:3000}/es/auth/callback
     cookie-expire-seconds: 180
-
-  # ===================================================
-  # CORS Configuration
-  # ===================================================
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
     allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}
@@ -124,9 +109,7 @@ app:
     allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
     max-age: ${CORS_MAX_AGE:3600}
 
-# ===================================================
-# Eureka Client Configuration
-# ===================================================
+# --- Configuración del cliente Eureka (Service Discovery) ---
 eureka:
   client:
     service-url:
@@ -134,20 +117,24 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
   instance:
-    ip-address: ${SERVER_IP}
-    prefer-ip-address: true
+    # ⚙️ En Azure o redes internas, NO usar IP pública
+    prefer-ip-address: false
 
-    status-page-url: http://${eureka.instance.ip-address}:8081/swagger-ui/index.html
-    health-check-url: http://${eureka.instance.ip-address}:8081/actuator/health
+    # Usa el nombre del contenedor / app como hostname (Azure resuelve el DNS)
+    hostname: ${HOSTNAME:${spring.application.name}}
 
+    # URLs para que Eureka vea el estado y salud del servicio
+    status-page-url: http://${eureka.instance.hostname}:${server.port:8081}/swagger-ui/index.html
+    health-check-url: http://${eureka.instance.hostname}:${server.port:8081}/actuator/health
+
+    # Identificador único para esta instancia
     instance-id: ${spring.application.name}:${server.port:8081}
 
+    # Intervalos de comunicación con Eureka
     lease-renewal-interval-in-seconds: 30
     lease-expiration-duration-in-seconds: 90
 
-# ===================================================
-# Actuator Configuration (for Eureka health checks)
-# ===================================================
+# --- Configuración de Actuator ---
 management:
   endpoints:
     web:
@@ -157,8 +144,6 @@ management:
     health:
       show-details: always
 
-# ===================================================
-# Server Configuration
-# ===================================================
+# --- Configuración del puerto del servidor ---
 server:
   port: ${PORT:8081}
