@@ -37,20 +37,20 @@ COPY --from=build /app/target/microservice-iam-*.jar app.jar
 RUN chown -R appuser:appuser /app
 USER appuser
 
-# Expose port
-EXPOSE 8080
+# Expose port (Render uses $PORT env variable)
+EXPOSE ${PORT:-8080}
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/actuator/health || exit 1
+# Health check (use PORT env variable if set)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-8080}/actuator/health || exit 1
 
 # Run the application with optimized JVM settings for containers
-ENTRYPOINT ["java", \
-    "-server", \
-    "-XX:+UseContainerSupport", \
-    "-XX:MaxRAMPercentage=75.0", \
-    "-XX:+UseG1GC", \
-    "-XX:+UseStringDeduplication", \
-    "-Djava.security.egd=file:/dev/./urandom", \
-    "-jar", \
-    "app.jar"]
+# Use shell form to allow environment variable substitution
+CMD java -server \
+    -XX:+UseContainerSupport \
+    -XX:MaxRAMPercentage=75.0 \
+    -XX:+UseG1GC \
+    -XX:+UseStringDeduplication \
+    -Djava.security.egd=file:/dev/./urandom \
+    -Dserver.port=${PORT:-8080} \
+    -jar app.jar

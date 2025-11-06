@@ -1,0 +1,144 @@
+spring:
+  application:
+    name: iam-service
+
+  # --- Configuración de Base de Datos (PostgreSQL) ---
+  datasource:
+    url: ${POSTGRES_URL}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update # Actualiza el schema de la BD al iniciar
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+    show-sql: false
+
+  docker:
+    compose:
+      enabled: false
+
+  # --- Configuración de OAuth2 (Google & GitHub) ---
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,email,profile
+            redirect-uri: ${BACKEND_URL:http://localhost:8081}/login/oauth2/code/google
+            client-name: Google
+          github:
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
+            scope: user:email,read:user,user
+            redirect-uri: ${BACKEND_URL:http://localhost:8081}/login/oauth2/code/github
+            client-name: GitHub
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
+            user-name-attribute: sub
+          github:
+            authorization-uri: https://github.com/login/oauth/authorize
+            token-uri: https://github.com/login/oauth/access_token
+            user-info-uri: https://api.github.com/user
+            user-name-attribute: id
+
+  # --- Configuración de Kafka (Azure Event Hubs) ---
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    properties:
+      security.protocol: SASL_SSL
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="$ConnectionString" password="${KAFKA_CONNECTION_STRING}";'
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        max.block.ms: 2000
+        request.timeout.ms: 2000
+        delivery.timeout.ms: 3000
+        spring:
+          json:
+            add:
+              type:
+                headers: false
+    admin:
+      new-topics:
+        - name: iam.user.registered
+          partitions: 3
+
+# --- Configuración de Swagger / OpenAPI ---
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    disable-swagger-default-url: true
+
+documentation:
+  application:
+    description: Level Up Journey - Plataforma gamificada de retos de programación.
+    version: 1.0.0
+
+# --- Configuración personalizada de la aplicación ---
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-hours: 1
+    refresh-expiration-days: 7
+  kafka:
+    enabled: ${KAFKA_ENABLED:true}
+  events:
+    retry-interval-ms: 15000
+  oauth2:
+    authorized-redirect-uris: ${FRONTEND_URL:http://localhost:3000}/en/auth/callback,${FRONTEND_URL:http://localhost:3000}/es/auth/callback
+    cookie-expire-seconds: 180
+  cors:
+    allowed-origins: http://192.168.0.253:3000,http://192.168.0.253:8080,https://your-frontend-domain.com
+    allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+    max-age: 3600
+
+# --- Configuración del cliente Eureka (Service Discovery) ---
+# DEPLOY
+eureka:
+  client:
+    service-url:
+      defaultZone: ${SERVICE_DISCOVERY_URL:http://service-discovery:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+    registry-fetch-interval-seconds: 10    # sincroniza lista de servicios cada 10s
+    healthcheck:
+      enabled: true                       # usa health endpoint para validación real
+
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10  # envía heartbeat cada 10s
+    lease-expiration-duration-in-seconds: 30 # Eureka espera 30s antes de eliminarlo
+    instance-id: ${spring.application.name}:${server.port}:${random.value}
+    metadata-map:
+      zone: default
+
+# --- Configuración de Actuator ---
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# --- Configuración del puerto del servidor ---
+server:
+  port: ${PORT}

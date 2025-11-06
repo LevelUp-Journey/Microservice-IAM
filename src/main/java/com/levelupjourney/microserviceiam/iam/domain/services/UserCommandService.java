@@ -1,0 +1,33 @@
+package com.levelupjourney.microserviceiam.iam.domain.services;
+
+import com.levelupjourney.microserviceiam.iam.domain.model.aggregates.User;
+import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignInCommand;
+import com.levelupjourney.microserviceiam.iam.domain.model.commands.SignUpCommand;
+import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.TokenPair;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+
+import java.util.Optional;
+
+/**
+ * User command service
+ * <p>
+ *     This interface represents the service to handle user commands.
+ * </p>
+ */
+public interface UserCommandService {
+    /**
+     * Handle sign in command
+     * @param command the {@link SignInCommand} command
+     * @return an {@link Optional} of {@link ImmutablePair} of {@link User} and {@link TokenPair}
+     */
+    Optional<ImmutablePair<User, TokenPair>> handle(SignInCommand command);
+
+    /**
+     * Handle sign up command
+     * @param command the {@link SignUpCommand} command
+     * @return an {@link Optional} of {@link User} entity
+     */
+    Optional<User> handle(SignUpCommand command);
+
+
+}

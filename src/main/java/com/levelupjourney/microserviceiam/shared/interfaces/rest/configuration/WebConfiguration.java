@@ -2,6 +2,7 @@ package com.levelupjourney.microserviceiam.shared.interfaces.rest.configuration;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
@@ -21,5 +22,15 @@ public class WebConfiguration implements WebMvcConfigurer {
                 .allowedOrigins("*")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*");
+    }
+
+    /**
+     * Configures view controllers to redirect root path to Swagger UI.
+     *
+     * @param registry the view controller registry to configure
+     */
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+        registry.addRedirectViewController("/", "/swagger-ui.html");
     }
 }

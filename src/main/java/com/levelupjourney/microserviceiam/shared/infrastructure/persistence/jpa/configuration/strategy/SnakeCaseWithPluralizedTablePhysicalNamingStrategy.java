@@ -4,7 +4,7 @@ import org.hibernate.boot.model.naming.Identifier;
 import org.hibernate.boot.model.naming.PhysicalNamingStrategy;
 import org.hibernate.engine.jdbc.env.spi.JdbcEnvironment;
 
-// Simple pluralization for English nouns (for PostgreSQL compatibility)
+import static io.github.encryptorcode.pluralize.Pluralize.pluralize;
 
 /**
  * SnakeCase Physical Naming Strategy
@@ -87,25 +87,7 @@ public class SnakeCaseWithPluralizedTablePhysicalNamingStrategy implements Physi
      * @return Pluralized Identifier
      */
     private Identifier toPlural(final Identifier identifier) {
-        if (identifier == null) return null;
-        String name = identifier.getText();
-        // Avoid reserved words in PostgreSQL
-        if ("user".equalsIgnoreCase(name)) {
-            name = "users";
-        }
-        // Simple pluralization logic
-        String newName;
-        if (name.endsWith("y") && name.length() > 1 && !isVowel(name.charAt(name.length() - 2))) {
-            newName = name.substring(0, name.length() - 1) + "ies";
-        } else if (name.endsWith("s") || name.endsWith("x") || name.endsWith("z") || name.endsWith("ch") || name.endsWith("sh")) {
-            newName = name + "es";
-        } else {
-            newName = name + "s";
-        }
+        final String newName = pluralize(identifier.getText());
         return Identifier.toIdentifier(newName);
-    }
-
-    private boolean isVowel(char c) {
-        return "aeiouAEIOU".indexOf(c) != -1;
     }
 }
