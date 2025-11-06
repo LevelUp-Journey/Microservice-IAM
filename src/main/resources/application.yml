@@ -110,6 +110,7 @@ app:
         max-age: 3600
 
 # --- Configuración del cliente Eureka (Service Discovery) ---
+# DEPLOY
 eureka:
     client:
         serviceUrl:
@@ -118,6 +119,33 @@ eureka:
         fetch-registry: true
     instance:
         prefer-ip-address: true
+
+        # estas opciones para el siguiente deploy
+        lease-renewal-interval-in-seconds: 30
+        lease-expiration-duration-in-seconds: 90
+
+        # LOCAL
+        # eureka:
+        #     client:
+        #         service-url:
+        #             defaultZone: ${SERVICE_DISCOVERY_URL}
+        #         register-with-eureka: true
+        #         fetch-registry: true
+        #     instance:
+        #         # ⚙️ En Azure o redes internas, NO usar IP pública
+        #         prefer-ip-address: false
+
+        #         # Usa el nombre del contenedor / app como hostname (Azure resuelve el DNS)
+        #         hostname: ${HOSTNAME:${spring.application.name}}
+
+        #         # URLs para que Eureka vea el estado y salud del servicio
+        #         status-page-url: http://${eureka.instance.hostname}:${server.port:8081}/swagger-ui/index.html
+        #         health-check-url: http://${eureka.instance.hostname}:${server.port:8081}/actuator/health
+
+        #         # Identificador único para esta instancia
+        #         instance-id: ${spring.application.name}:${server.port:8081}
+
+        #         # Intervalos de comunicación con Eureka
 
 # --- Configuración de Actuator ---
 management:
