@@ -125,7 +125,9 @@ public class WebSecurityConfiguration {
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authorizationEndpoint ->
-                            authorizationEndpoint.authorizationRequestRepository(httpCookieOAuth2AuthorizationRequestRepository))
+                                authorizationEndpoint
+                                        .baseUri("/login/oauth2/authorization")
+                                        .authorizationRequestRepository(httpCookieOAuth2AuthorizationRequestRepository))
                         .successHandler(oauth2AuthenticationSuccessHandler)
                         .failureHandler(oauth2AuthenticationFailureHandler));
         http.authenticationProvider(authenticationProvider());

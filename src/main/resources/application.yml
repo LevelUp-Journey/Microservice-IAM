@@ -141,4 +141,4 @@ management:
 
 # --- Configuración del puerto del servidor ---
 server:
-  port: ${PORT:8081}
+  port: ${PORT}
