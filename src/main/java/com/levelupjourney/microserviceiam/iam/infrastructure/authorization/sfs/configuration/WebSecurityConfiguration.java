@@ -2,6 +2,7 @@ package com.levelupjourney.microserviceiam.iam.infrastructure.authorization.sfs.
 
 import com.levelupjourney.microserviceiam.iam.infrastructure.authorization.sfs.pipeline.BearerAuthorizationRequestFilter;
 import com.levelupjourney.microserviceiam.iam.infrastructure.hashing.bcrypt.BCryptHashingService;
+import com.levelupjourney.microserviceiam.iam.infrastructure.configuration.FrontendConfigurationProperties;
 import com.levelupjourney.microserviceiam.iam.infrastructure.oauth2.OAuth2AuthenticationSuccessHandler;
 import com.levelupjourney.microserviceiam.iam.infrastructure.oauth2.OAuth2AuthenticationFailureHandler;
 import com.levelupjourney.microserviceiam.iam.infrastructure.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
@@ -49,6 +50,7 @@ public class WebSecurityConfiguration {
     private final OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
 
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
+    private final FrontendConfigurationProperties frontendConfigurationProperties;
 
     /**
      * This method creates the Bearer Authorization Request Filter.
@@ -102,8 +104,8 @@ public class WebSecurityConfiguration {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(configurer -> configurer.configurationSource(_ -> {
             var cors = new CorsConfiguration();
-            cors.setAllowedOrigins(List.of("*"));
-            cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
+            cors.setAllowedOrigins(frontendConfigurationProperties.getAllowedOrigins());
+            cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
             cors.setAllowedHeaders(List.of("*"));
             return cors;
         }));
@@ -151,7 +153,8 @@ public class WebSecurityConfiguration {
                                    AuthenticationEntryPoint authenticationEntryPoint,
                                    OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler,
                                    OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler,
-                                   HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository) {
+                                   HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository,
+                                   FrontendConfigurationProperties frontendConfigurationProperties) {
         this.userDetailsService = userDetailsService;
         this.tokenService = tokenService;
         this.hashingService = hashingService;
@@ -159,5 +162,6 @@ public class WebSecurityConfiguration {
         this.oauth2AuthenticationSuccessHandler = oauth2AuthenticationSuccessHandler;
         this.oauth2AuthenticationFailureHandler = oauth2AuthenticationFailureHandler;
         this.httpCookieOAuth2AuthorizationRequestRepository = httpCookieOAuth2AuthorizationRequestRepository;
+        this.frontendConfigurationProperties = frontendConfigurationProperties;
     }
 }
