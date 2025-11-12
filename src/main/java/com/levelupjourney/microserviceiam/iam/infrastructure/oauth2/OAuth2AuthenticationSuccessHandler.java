@@ -9,11 +9,11 @@ import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.Roles;
 import com.levelupjourney.microserviceiam.iam.domain.services.RoleQueryService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserQueryService;
+import com.levelupjourney.microserviceiam.iam.infrastructure.configuration.FrontendConfigurationProperties;
 import com.levelupjourney.microserviceiam.iam.infrastructure.eventpublishers.IamEventPublisher;
 import com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt.BearerTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -22,7 +22,6 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -34,22 +33,22 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     private final BearerTokenService tokenService;
     private final OAuth2UserInfoExtractor userInfoExtractor;
     private final IamEventPublisher eventPublisher;
-
-    @Value("${app.oauth2.authorized-redirect-uris}")
-    private String authorizedRedirectUris;
+    private final FrontendConfigurationProperties frontendProperties;
 
     public OAuth2AuthenticationSuccessHandler(UserCommandService userCommandService,
                                             UserQueryService userQueryService,
                                             RoleQueryService roleQueryService,
                                             BearerTokenService tokenService,
                                             OAuth2UserInfoExtractor userInfoExtractor,
-                                            IamEventPublisher eventPublisher) {
+                                            IamEventPublisher eventPublisher,
+                                            FrontendConfigurationProperties frontendProperties) {
         this.userCommandService = userCommandService;
         this.userQueryService = userQueryService;
         this.roleQueryService = roleQueryService;
         this.tokenService = tokenService;
         this.userInfoExtractor = userInfoExtractor;
         this.eventPublisher = eventPublisher;
+        this.frontendProperties = frontendProperties;
     }
 
     @Override
@@ -64,18 +63,18 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 System.out.println("Processing OAuth2User...");
                 System.out.println("Attributes: " + oauth2User.getAttributes());
                 String token = handleOAuth2User(oauth2User);
-                String redirectUrl = getAuthorizedRedirectUri() + "?token=" + token;
+                String redirectUrl = frontendProperties.getPrimaryRedirectUri() + "?token=" + token;
                 System.out.println("Redirecting to: " + redirectUrl);
                 response.sendRedirect(redirectUrl);
             } catch (Exception e) {
                 System.err.println("Error in handleOAuth2User: " + e.getMessage());
                 e.printStackTrace();
-                String redirectUrl = getAuthorizedRedirectUri() + "?error=authentication_failed";
+                String redirectUrl = frontendProperties.getPrimaryRedirectUri() + "?error=authentication_failed";
                 response.sendRedirect(redirectUrl);
             }
         } else {
             System.err.println("Principal is not OAuth2User, redirecting with invalid_user error");
-            String redirectUrl = getAuthorizedRedirectUri() + "?error=invalid_user";
+            String redirectUrl = frontendProperties.getPrimaryRedirectUri() + "?error=invalid_user";
             response.sendRedirect(redirectUrl);
         }
     }
@@ -129,10 +128,5 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         }
 
         return tokenService.generateToken(user);
-    }
-
-    private String getAuthorizedRedirectUri() {
-        String[] uris = authorizedRedirectUris.split(",");
-        return uris[0].trim();
     }
 }

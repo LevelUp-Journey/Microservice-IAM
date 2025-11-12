@@ -99,15 +99,15 @@ app:
     enabled: ${KAFKA_ENABLED:true}
   events:
     retry-interval-ms: 15000
+  frontend:
+    production: ${FRONTEND_IS_PRODUCTION:true}
+    prod-url: ${FRONTEND_PROD_URL}
+    dev-url: ${FRONTEND_DEV_URL}
+    prod-origins: ${FRONTEND_PROD_ORIGINS}
+    dev-origins: ${FRONTEND_DEV_ORIGINS}
+    callback-paths: ${FRONTEND_CALLBACK_PATHS}
   oauth2:
-    authorized-redirect-uris: ${FRONTEND_URL:http://localhost:3000}/en/auth/callback,${FRONTEND_URL:http://localhost:3000}/es/auth/callback
     cookie-expire-seconds: 180
-  cors:
-    allowed-origins: http://192.168.0.253:3000,http://192.168.0.253:8080,https://your-frontend-domain.com
-    allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
-    allowed-headers: "*"
-    allow-credentials: true
-    max-age: 3600
 
 # --- Configuración del cliente Eureka (Service Discovery) ---
 # DEPLOY
