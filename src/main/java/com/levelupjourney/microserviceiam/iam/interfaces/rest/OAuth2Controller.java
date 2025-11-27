@@ -7,12 +7,12 @@ import com.levelupjourney.microserviceiam.iam.domain.model.valueobjects.Roles;
 import com.levelupjourney.microserviceiam.iam.domain.services.RoleQueryService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserCommandService;
 import com.levelupjourney.microserviceiam.iam.domain.services.UserQueryService;
+import com.levelupjourney.microserviceiam.iam.infrastructure.configuration.FrontendConfigurationProperties;
 import com.levelupjourney.microserviceiam.iam.infrastructure.tokens.jwt.BearerTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -35,18 +35,18 @@ public class OAuth2Controller {
     private final UserQueryService userQueryService;
     private final RoleQueryService roleQueryService;
     private final BearerTokenService tokenService;
-
-    @Value("${app.oauth2.authorized-redirect-uris}")
-    private String authorizedRedirectUris;
+    private final FrontendConfigurationProperties frontendProperties;
 
     public OAuth2Controller(UserCommandService userCommandService,
                           UserQueryService userQueryService,
                           RoleQueryService roleQueryService,
-                          BearerTokenService tokenService) {
+                          BearerTokenService tokenService,
+                          FrontendConfigurationProperties frontendProperties) {
         this.userCommandService = userCommandService;
         this.userQueryService = userQueryService;
         this.roleQueryService = roleQueryService;
         this.tokenService = tokenService;
+        this.frontendProperties = frontendProperties;
     }
 
     @GetMapping("/oauth2/callback")
@@ -54,18 +54,18 @@ public class OAuth2Controller {
     public void oauth2Success(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
         if (authentication != null && authentication.getPrincipal() instanceof OAuth2User oauth2User) {
             String token = handleOAuth2User(oauth2User);
-            
-            String redirectUrl = getAuthorizedRedirectUri() + "?token=" + token;
+
+            String redirectUrl = frontendProperties.getPrimaryRedirectUri() + "?token=" + token;
             response.sendRedirect(redirectUrl);
         } else {
-            response.sendRedirect(getAuthorizedRedirectUri() + "?error=authentication_failed");
+            response.sendRedirect(frontendProperties.getPrimaryRedirectUri() + "?error=authentication_failed");
         }
     }
 
     @GetMapping("/oauth2/error")
     @Operation(summary = "OAuth2 Error Callback", description = "Handles OAuth2 authentication errors")
     public void oauth2Error(HttpServletRequest request, HttpServletResponse response, @RequestParam(required = false) String error) throws IOException {
-        String redirectUrl = getAuthorizedRedirectUri() + "?error=" + (error != null ? error : "oauth2_error");
+        String redirectUrl = frontendProperties.getPrimaryRedirectUri() + "?error=" + (error != null ? error : "oauth2_error");
         response.sendRedirect(redirectUrl);
     }
 
@@ -114,11 +114,5 @@ public class OAuth2Controller {
             return (String) attributes.get("email");
         }
         return null;
-    }
-
-
-    private String getAuthorizedRedirectUri() {
-        String[] uris = authorizedRedirectUris.split(",");
-        return uris[0].trim();
     }
 }
